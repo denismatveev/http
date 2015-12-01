@@ -16,13 +16,21 @@
 #define LREQUEST 1024
 int main(int argc, char** argv)
 {
-  int sockfd, newsockfd, portno;
-  socklen_t clilen;
-  struct sockaddr_in serv_addr, cli_addr;
-  portno=80;
+  int sockfd,newsockfd;
+  struct sockaddr_in serv_addr;
+  serv_addr.sin_addr.in_addr=INADDR_ANY;
+  serv_addr.sin_port=80;
+  serv_addr.sin_family=AF_INET;
   char req_in[LREQUEST]; // for incoming requests
   char *request="GET / HTTP/1.1";
-  char *response="Content-Type: text/html; charset=utf-8\n"
+
+  char *response="HTTP/1.1 200 Ok"
+                 "Server: My""
+                 "Date: Tue, 01 Dec 2015 15:03:32 GMT"
+                 "Content-Type: text/html; charset=utf-8
+                 "Content-Length: 166
+                 "Connection: close
+                 "Content-Type: text/html; charset=utf-8\n"
                  "Content-Length: 166\n"
                  "Connection: close\n"
                  "                   \n"
@@ -32,16 +40,49 @@ int main(int argc, char** argv)
                  "</body>\n"
                  "</html>\n";
 
+  char *response_err="HTTP/1.1 400 Bad Request"
+                     "Server: My"
+                     "Date: Tue, 01 Dec 2015 15:04:56 GMT"
+                     "Content-Type: text/html; charset=utf-8"
+                     "Content-Length: 166"
+                     "Connection: close"
+
+                     "<html>"
+                     "<head><title>400 Bad Request</title></head>"
+                     "<body bgcolor=\"white\">"
+                     "<center><h1>400 Bad Request</h1></center>"
+                     "<hr><center>nginx</center>"
+                     "</body>"
+                     "</html>";
 
 
   if(!(sockfd = socket(AF_INET, SOCK_STREAM, 0)))
-  {
-     perror("Error opening socket\n");
-     exit(1);
-}
+    {
+      perror("Error opening socket\n");
+      exit(1);
+    }
+  if(!(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr))))
+    {
+      perror("Cannot bind()\n");
+      exit(2);
+    }
 
 
+  if(!(listen(sockfd, 5)))
+    {
+      perror("Can't Listen()\n");
+      exit(2);
+    }
 
-     return 0;
+  if(!(accept(newsockfd, NULL, NULL)))
+    {
+      perror("Can'accept()\n");
+      exit(2);
+    }
+
+
+   close(sockfd);
+
+  return 0;
 }
 
