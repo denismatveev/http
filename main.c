@@ -75,20 +75,20 @@ int main(int argc, char** argv)
     }
   if((bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0))
     {
-      perror("Cannot bind()\n");
+      perror("Cannot bind socket\n");
       exit(2);
     }
 
 
   if((listen(sockfd, 5)) < 0)
     {
-      perror("Can't Listen()\n");
+      perror("Can't Listen socket\n");
       exit(2);
     }
 
   if(((newsockfd = accept(sockfd, (struct sockaddr *) &serv_addr, &sizepeer) < 0)))
     {
-      perror("Can'accept()\n");
+      perror("Can't accept socket\n");
       exit(2);
     }
 
