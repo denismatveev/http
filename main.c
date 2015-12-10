@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include<arpa/inet.h>
 //http://www.linuxhowtos.org/C_C++/socket.htm
 //The steps involved in establishing a socket on the server side are as follows:
 
@@ -27,46 +28,52 @@ int accept(int sockfd, void *addr, int *addrlen);
 #define LREQUEST 1024
 int main(int argc, char** argv)
 {
-  int sockfd,newsockfd,n_bytes_read,portno=80;
-  struct sockaddr_in serv_addr;
-  socklen_t sizepeer=sizeof(serv_addr);
-  serv_addr.sin_addr.s_addr=htonl(INADDR_ANY);
+  socklen_t clilen;
+  int sockfd,newsockfd,n_bytes_read,r;
+  char* inetaddr="0.0.0.0";
+  int portno=80;
+  struct sockaddr_in serv_addr, cli_addr;
+  size_t len_err_response;
+  clilen=sizeof(cli_addr);
+  char haddr[LREQUEST];
   serv_addr.sin_port=htons(portno);
   serv_addr.sin_family=AF_INET;
   char req_in[LREQUEST]; // for incoming requests
+  char *message="Your IP address is: ";
+  char response[LREQUEST];
   char *request="GET / HTTP/1.1";
 
-  char *response="HTTP/1.1 200 Ok\n"
-                 "Server: My\n"
-                 "Date: Tue, 01 Dec 2015 15:03:32 GMT\n"
-                 "Content-Type: text/html; charset=utf-8\n"
-                 "Content-Length: 166\n"
-                 "Connection: close\n"
-                 "Content-Type: text/html; charset=utf-8\n"
-                 "Content-Length: 166\n"
-                 "Connection: close\n"
-                 "                   \n"
-                 "<html>\n"
-                 "<head><title>Hi Men!</title></head>\n"
-                 "<center><h1>Hi Men!</h1></center>\n"
-                 "</body>\n"
-                 "</html>\n";
+  char *response_err="<html><body><center><h1>400 Bad Request</h1></center></body></html>\n";
+  //  char *response="<html><body><center><h1>Hi Men!</h1></center></body></html>\n";
+  char *opentags="<html><body><center><h1>";
+  char *closetags="</center></body></html>";
 
-  char *response_err="HTTP/1.1 400 Bad Request\n"
-                     "Server: My\n"
-                     "Date: Tue, 01 Dec 2015 15:04:56 GMT\n"
-                     "Content-Type: text/html; charset=utf-8\n"
-                     "Content-Length: 166\n"
-                     "Connection: close\n"
+  r=inet_pton(AF_INET,inetaddr,&serv_addr.sin_addr.s_addr);
+  if(!r)
+    {
+      fprintf(stderr,"Internet address is not valid\n");
+      fprintf(stderr,"Using 0.0.0.0\n");
+      inetaddr="0.0.0.0";
+      if((r=inet_pton(AF_INET,inetaddr,&serv_addr.sin_addr.s_addr) < 0))
+        {
 
-                     "<html>\n"
-                     "<head><title>400 Bad Request</title></head>\n"
-                     "<body bgcolor=\"white\">\n"
-                     "<center><h1>400 Bad Request</h1></center>\n"
-                     "<hr><center>http server</center>\n"
-                     "</body>\n"
-                     "</html>\n";
+          perror("An error occured in address covert from human readable to machine format");
+          exit(2);
 
+        }
+    }
+  else if(r < 0)
+    {
+      perror("An error occured in address covert from human readable to machine format");
+      exit(2);
+    }
+  else ;
+
+
+  memset(&serv_addr.sin_zero,0,8);// the same as bzero(). Stevens recommends
+  memset(req_in,0,LREQUEST);// filling by zeroes
+
+  len_err_response=strlen(response_err);
 
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 )
     {
@@ -75,37 +82,45 @@ int main(int argc, char** argv)
     }
   if((bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0))
     {
-      perror("Cannot bind socket\n");
+      perror("Cannot bind socket");
       exit(2);
     }
 
 
-  if((listen(sockfd, 5)) < 0)
+  if((listen(sockfd, 255)) < 0)
     {
-      perror("Can't Listen socket\n");
+      perror("Can't Listen socket");
       exit(2);
     }
 
-  if(((newsockfd = accept(sockfd, (struct sockaddr *) &serv_addr, &sizepeer) < 0)))
+  while(1)
     {
-      perror("Can't accept socket\n");
-      exit(2);
+      if(((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) < 0))
+        {
+          perror("Can't accept socket");
+          exit(2);
+        }
+
+
+      n_bytes_read=read(newsockfd,req_in,LREQUEST-1);
+
+      if(n_bytes_read < 0)
+        perror("Can't read from socket");
+
+      if(!(strncasecmp(req_in,request,strlen(request))))
+        {
+
+          inet_ntop(AF_INET,&cli_addr.sin_addr,haddr,LREQUEST);
+          snprintf(response,LREQUEST,"%s%s%s%s\n",opentags,message,haddr,closetags);
+          write(newsockfd, response,strlen(response));
+        }
+      else
+        write(newsockfd, response_err, len_err_response);
+
+      close(newsockfd);
     }
+  close(sockfd);
 
-
-  if((n_bytes_read=read(newsockfd,req_in,LREQUEST)) < 0)
-    {
-      perror("Can't read from socket\n");
-
-    }
-  if((strcasecmp(req_in,request)))
-      write(newsockfd,response,1024);
-  else
-    write(newsockfd, response_err, 1024);
-
-
-   close(sockfd);
-   close(newsockfd);
 
   return 0;
 }
