@@ -6,25 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include<arpa/inet.h>
-//http://www.linuxhowtos.org/C_C++/socket.htm
-//The steps involved in establishing a socket on the server side are as follows:
 
-//Create a socket with the socket() system call
-//Bind the socket to an address using the bind() system call. For a server socket on the Internet, an address consists of a port number on the host machine.
-//Listen for connections with the listen() system call
-//Accept a connection with the accept() system call. This call typically blocks until a client connects with the server.
-//Send and receive data
-/*
- *
-#include <sys/types.h>
-#include <sys/socket.h>
-
-int socket(int domain, int type, int protocol);
-int bind(int sockfd, struct sockaddr *addr, int addrlen);
-int listen(int sockfd, int backlog);
-
-int accept(int sockfd, void *addr, int *addrlen);
-*/
 #define LREQUEST 1024
 int main(int argc, char** argv)
 {
@@ -44,7 +26,6 @@ int main(int argc, char** argv)
   char *request="GET / HTTP/1.1";
 
   char *response_err="<html><body><center><h1>400 Bad Request</h1></center></body></html>\n";
-  //  char *response="<html><body><center><h1>Hi Men!</h1></center></body></html>\n";
   char *opentags="<html><body><center><h1>";
   char *closetags="</center></body></html>";
 
