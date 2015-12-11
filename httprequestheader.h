@@ -10,7 +10,7 @@ typedef struct HTTPRequestHeader {
 
 typedef __HTTPRequestHeader* httpRequestHeader;
 
-httpRequestHeader init_httpRequestHeader();
+httpRequestHeader httpRequestHeaderInit();
 void httpRequestHeaderRemove();
 
 #endif // REQUEST

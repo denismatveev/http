@@ -13,7 +13,7 @@ typedef struct HTTPResponseHeader{
 }__HTTPResponseHeader;
 typedef __HTTPResponseHeader* httpResponseHeader;
 
-httpResponseHeader init_httpResponseHeader(char*,char*,int, unsigned short, char*);
+httpResponseHeader httpResponseHeaderInit(char*,char*,int, unsigned short, char*);
 void httpResponseHeaderRemove();
 
 
