@@ -6,11 +6,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include<arpa/inet.h>
-//TODO logs write
+//TODO web server logs to write
 //TODO run as daemon
 //TODO multithread or multiprocess
 //TODO config
-//TODO
+//TODO parse request and make response
 #define LREQUEST 1024
 int main(int argc, char** argv)
 {
