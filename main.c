@@ -1,22 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <limits.h>
-#include <sys/epoll.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
-#include <syslog.h>
-#include <stdarg.h>
 //TODO web server logs to write
 //TODO multithread or multiprocess
 //TODO config
 //TODO parse request and make response
+#include"http.h"
 #define LREQUEST 1024
 #define MAX_EVENTS 10
 void WriteLog(const char *format, ...)
@@ -79,7 +65,7 @@ void process_request(int d, struct sockaddr_in * cli_addr)
 
   return;
 } 
-static int setnonblocking (int sfd)
+int setnonblocking (int sfd)
 {
   int flags, s;
 
