@@ -1,3 +1,5 @@
+#ifndef _HTTPD_
+#define _HTTPD_
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,4 +19,4 @@ int setnonblocking (int);
 void process_request(int, struct sockaddr_in*);
 void WriteLog(const char *format, ...);
 void WriteLogPError(const char*);
-
+#endif /*_HTTPD_*/
