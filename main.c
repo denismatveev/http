@@ -9,18 +9,33 @@
 #include <limits.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
-#include<errno.h>
+#include <errno.h>
+#include <signal.h>
+#include <syslog.h>
+#include <stdarg.h>
 //TODO web server logs to write
-//TODO run as daemon
 //TODO multithread or multiprocess
 //TODO config
 //TODO parse request and make response
 #define LREQUEST 1024
+#define MAX_EVENTS 10
+void WriteLog(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vsyslog(LOG_LOCAL0, format, args);
+    va_end(args);
 
-
+    return;
+}
+void WriteLogPError(const char * strerr)
+{
+    syslog(LOG_LOCAL0, "%s%s%s\n", strerr, ": ", strerror(errno));
+   
+    return;
+}
 void process_request(int d, struct sockaddr_in * cli_addr)
 {
-  socklen_t clilen;
   char req_in[LREQUEST]; // for incoming requests
   char *message="Your IP address is: ";
   char response[LREQUEST];
@@ -35,12 +50,11 @@ void process_request(int d, struct sockaddr_in * cli_addr)
   len_err_response=strlen(response_err);
 
   memset(req_in,0,LREQUEST);// filling by zeroes
-  clilen=sizeof(cli_addr);
   n_bytes_read=read(d,req_in,LREQUEST-1);
 
   if(n_bytes_read < 0)
   {
-    perror("Can't read from socket");
+    WriteLogPError("Can't read from socket");
     if(errno == ECONNRESET) // connection reset
     {
         close(d);
@@ -72,7 +86,7 @@ static int setnonblocking (int sfd)
   flags = fcntl (sfd, F_GETFL, 0);
   if (flags == -1)
     {
-      perror ("fcntl");
+      WriteLogPError("fcntl");
       return -1;
     }
 
@@ -80,7 +94,7 @@ static int setnonblocking (int sfd)
   s = fcntl (sfd, F_SETFL, flags);
   if (s == -1)
     {
-      perror ("fcntl");
+      WriteLogPError("fcntl");
       return -1;
     }
 
@@ -91,23 +105,50 @@ static int setnonblocking (int sfd)
 int main(int argc, char** argv)
 {
   socklen_t clilen;
-  int sockfd,newsockfd,r, conn_sock, nfds, epollfd, n;
+  int sockfd,r, conn_sock, nfds, epollfd, n;
   char* inetaddr="0.0.0.0";
   int portno=80;
   struct sockaddr_in serv_addr, cli_addr;
   serv_addr.sin_port=htons(portno);
   serv_addr.sin_family=AF_INET;
-  #define MAX_EVENTS 10
   struct epoll_event ev, events[MAX_EVENTS];
   const int on = 1;
+  pid_t pid;
 
+	pid=fork();//child process
+ 
+    if(pid == -1)
+    {
+        fprintf(stderr, "Error starting daemon %s\n",strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    if(pid)
+    {
+        fprintf(stderr,"[Daemon] Started OK\n");
+        exit(EXIT_SUCCESS);
+    }  
+/* further code is executing in child process */
+    if((setsid()) < 0)
+    {
+        fprintf(stderr,"[Daemon] An Error occured. Stop\n");
+        exit(EXIT_FAILURE);
+    }
+    umask(0);
 
+    if((chdir("/")) < 0)
+    {
+        fprintf(stderr,"[Daemon] Can't change directory\n");
+        exit(EXIT_FAILURE);
+    }
 
+    fclose(stderr);
+    fclose(stdin);
+    fclose(stdout);  
   if(!(r=inet_pton(AF_INET,inetaddr,&serv_addr.sin_addr.s_addr)))
-    perror("init_pton");
+    WriteLogPError("init_pton");
   else if(r < 0)
     {
-      perror("An error occured in address convertion from human readable to machine format");
+      WriteLogPError("An error occured in address convertion from human readable to machine format");
       exit(EXIT_FAILURE);
     }
   else ;
@@ -118,27 +159,27 @@ int main(int argc, char** argv)
 
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 )
     {
-      perror("Error opening socket");
+      WriteLogPError("Error opening socket");
       exit(EXIT_FAILURE);
     }
   if( setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) // use it before bind(). It provides immediately server restart before TIME_WAIT is expired
-     perror("Error calling setsockopt");
+     WriteLogPError("Error calling setsockopt");
   if((bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0))
     {
-      perror("Cannot bind socket");
+      WriteLogPError("Cannot bind socket");
       exit(EXIT_FAILURE);
     }
 
  // setnonblocking(sockfd);
   if((listen(sockfd, 255)) < 0)
     {
-      perror("Can't Listen socket");
+      WriteLogPError("Can't Listen socket");
       exit(EXIT_FAILURE);
     }
    epollfd = epoll_create1(0);
    if (epollfd == -1) 
    {
-	   perror("epoll_create1");
+	   WriteLogPError("epoll_create1");
 	   exit(EXIT_FAILURE);
    }
    ev.events = EPOLLIN;
@@ -147,7 +188,7 @@ int main(int argc, char** argv)
 
    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) 
    {
-       perror("epoll_ctl:");
+       WriteLogPError("epoll_ctl");
        exit(EXIT_FAILURE);
    }
 
@@ -156,7 +197,7 @@ int main(int argc, char** argv)
        nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
        if (nfds == -1) 
        {
-           perror("epoll_wait");
+           WriteLogPError("epoll_wait");
            exit(EXIT_FAILURE);
        }
 
@@ -167,7 +208,7 @@ int main(int argc, char** argv)
                conn_sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
                if (conn_sock == -1) 
                {
-                   perror("accept");
+                   WriteLogPError("accept");
                    exit(EXIT_FAILURE);
                }
 //             setnonblocking(conn_sock);//if set non-blocking mode we need to use edge-triggered epoll mode and check EAGAIN in while loop to get all incoming data. it is asynchronous mode 
@@ -175,7 +216,7 @@ int main(int argc, char** argv)
                ev.data.fd = conn_sock;
                if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,&ev) == -1) 
                {
-                   perror("epoll_ctl: conn_sock");
+                   WriteLogPError("epoll_ctl: conn_sock");
                    exit(EXIT_FAILURE);
                }
            } 
