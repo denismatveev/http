@@ -2,20 +2,18 @@
 #define HTTPRESPONSEHEADER_H
 
 typedef struct HTTPResponseHeader{
-  char *servername;
-  char *date;
+  char servername = "mininginx";
+  char date[96];
   int contentlength;
-  char *contenttype;
-  unsigned short statuscode;
-  char protocol[9]; // must be only HTTP/1.1
+  char contenttype = "Content-Type: text/html; charset=utf-8";
+  unsigned short statuscode = 200;
+  char status = "OK";
+  char protocol = "HTTP/1.1"; // must be only HTTP/1.1
 
 
 }__HTTPResponseHeader;
-typedef __HTTPResponseHeader* httpResponseHeader;
-
-httpResponseHeader httpResponseHeaderInit(char*,char*,int, unsigned short, char*);
-void httpResponseHeaderRemove();
-
+typedef __HTTPResponseHeader httpResponseHeader;
+void HTTPResponseDate(httpResponseHeader*);
 
 
 

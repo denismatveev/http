@@ -110,7 +110,7 @@ int main(int argc, char** argv)
     }
     if(pid)
     {
-        fprintf(stderr,"[Daemon] Started OK\n");
+        fprintf(stderr,"[Daemon] Started OK, My PID = %i\n", pid);
         exit(EXIT_SUCCESS);
     }  
 /* further code is executing in child process */
