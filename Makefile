@@ -1,5 +1,5 @@
 CC=gcc
-SRC=main.c 
+SRC=main.c http.c 
 CFLAGS=-Wall -O3 -I. -static
 EXEC=httpd
 OBJECTS=$(SRC:.c=.o)

@@ -4,28 +4,26 @@
 #define QUEUE_SIZE_RESERVE 1024
 typedef struct __job
 {
+    *http_request_t req;
+} job;
 
-
-
-} __job*;
-
-typdef __job* job;
-
+typedef job job_t;
 
 typedef struct __jobs_queue
 {
-   unsigned int size;
-   job *array;
-   unsigned int high_bound;
-   unsigned int low_bound;
+   size_t queue_size;
+   job_t *array;
+   size_t array_size;
+   size_t high_bound;
+   size_t low_bound;
 
 } jobs_queue;
-typedef jobs_queue* jobs_queue;
-jobs_queue init_jobs_queue();
-int close_jobs_queue(jobs_queue);
+typedef jobs_queue* jobs_queue_t;
+jobs_queue_t init_jobs_queue();
+int close_jobs_queue(jobs_queue_t);
 
-int push_request(jobs_queue, job);
-job pop_request(jobs_queue);
+int push_job(jobs_queue_t, job_t*);
+job_t* pop_job(jobs_queue_t);
 
 
 #endif
