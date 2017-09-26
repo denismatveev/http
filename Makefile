@@ -9,7 +9,7 @@ all:$(EXEC)
 $(EXEC):$(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(EXEC)
 test:
-	$(CC) $(CFLAGS) $(TEST_SRC) -o $(EXEC_TEST) 
+	$(CC) $(CFLAGS) $(TEST_SRC) -g -o $(EXEC_TEST) 
 .PHONY: clean
 clean:
 	rm -rf $(EXEC) $(EXEC_TEST) $(OBJECTS)

@@ -33,7 +33,7 @@ typedef enum http_method
 } http_method_t;
 typedef enum http_protocol_version 
 {
-    HTTP11 = 1,
+    HTTP11 = 0,
     HTTP2
 } http_protocol_version_t;
 
@@ -50,5 +50,5 @@ typedef struct __http_request
     http_protocol_version_t http_proto;
     char params[PARAMS_STRING_LENGTH];//128 kb maximum
 } http_request_t;
-int fill_http_request(http_request_t *, const char *);
+int fill_http_request(http_request_t *, char *);
 #endif /*_HTTPD_*/

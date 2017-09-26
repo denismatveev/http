@@ -105,14 +105,18 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
     return -1;
 }
 
-int fill_http_request(http_request_t *req, const char *string_req)
+int fill_http_request(http_request_t *req, char *string_req)
 {
-   char *r = strdup(string_req);//duplicate string due to the original string changed by strsep()
-   char *tok = r, *end = r, *delim = " ";
+   if(string_req == NULL)
+	   return -1;
+   const char *delim = " ";
+   char *tok;
    unsigned int i = 0;
+   tok = strtok(string_req, delim);
+   //printf("%s\n",tok);
    while(tok != NULL && i < 3)
    {
-      tok = strsep(&end, delim);
+	  //printf("tok=%s\n",tok);
       switch(i)
       {
           case 0:
@@ -128,10 +132,8 @@ int fill_http_request(http_request_t *req, const char *string_req)
                req->http_proto=find_http_protocol_version(tok);
                break;
       }
-
-      tok = end;
       i++; 
+	  tok = strtok(NULL, delim);
    }
-  free(r);
 return 0;
 }
