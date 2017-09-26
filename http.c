@@ -1,6 +1,10 @@
 #include"http.h"
 #define LREQUEST 1024
 #define MAX_EVENTS 10
+/* array of strings to search symbol name of HTTP method */
+char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
+/* only two versions supported */
+char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
 void WriteLog(const char *format, ...)
 {
     va_list args;
@@ -87,49 +91,47 @@ http_method_t find_http_method(const char *sval)
     http_method_t result = GET; /* value corresponding to etable[0] */
     int i = 0;
     for (i = 0; http_method[i] != NULL; ++i, ++result)
-        if (!(strincmp(sval, http_method[i], 16))) 
+        if (!(strncmp(sval, http_method[i], 16))) 
           return result;
     return -1;
 }
-http_protocol_t find_http_protocol(const char *sval)
+http_protocol_version_t find_http_protocol_version(const char *sval)
 {
-    http_protocol_t result = HTTP11; /* value corresponding to etable[0] */
+    http_protocol_version_t result = HTTP11; /* value corresponding to etable[0] */
     int i = 0;
-    for (i = 0; http_protocol[i] != NULL; ++i, ++result)
-        if (!(strncmp(sval, http_protocol[i], 16))) 
+    for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
+        if (!(strncmp(sval, http_protocol_version[i], 16))) 
           return result;
     return -1;
 }
 
-int parse_http_request(http_request_t *req, const char *string_req)
+int fill_http_request(http_request_t *req, const char *string_req)
 {
-   char *tmp;
+   char *r = strdup(string_req);//duplicate string due to the original string changed by strsep()
+   char *tok = r, *end = r, *delim = " ";
    unsigned int i = 0;
+   while(tok != NULL && i < 3)
+   {
+      tok = strsep(&end, delim);
+      switch(i)
+      {
+          case 0:
 /* search for request method */
-   while(isblank(*(string_req + i))
-        i++;
-   tmp = string_req + i;
-   while(!(isalpha(*(string_req + i))))
-       i++;
-  
-  req->method=find_http_method(tmp);
- 
-
+               req->method=find_http_method(tok);
+               break;
+          case 1:
 /* search for params */
-   while(string_req + i)
-      i++;
-
-
+               strncpy(req->params, tok, PARAMS_STRING_LENGTH);
+               break;
+          case 2:
 /* search for http protocol */
+               req->http_proto=find_http_protocol_version(tok);
+               break;
+      }
 
-
-
-    }
-
-
-
-
-
-
+      tok = end;
+      i++; 
+   }
+  free(r);
+return 0;
 }
-
