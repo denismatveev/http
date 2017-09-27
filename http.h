@@ -45,7 +45,6 @@ void WriteLog(const char *format, ...);
 void WriteLogPError(const char*);
 typedef struct __http_request
 {
-    char host[256];//max length of domain name
     http_method_t method;  
     http_protocol_version_t http_proto;
     char params[PARAMS_STRING_LENGTH];//128 kb maximum

@@ -114,14 +114,14 @@ int fill_http_request(http_request_t *req, const char *string_req)
    unsigned int i = 0;
    char *tmp =strdup(string_req);
    tok = strtok(tmp,delim);
-   
    while(tok != NULL && i < 3)
    {
       switch(i)
       {
           case 0:
 // search for request method 
-               req->method=find_http_method(tok);
+               if((req->method=find_http_method(tok)))
+                   return -1;
                break;
           case 1:
 // search for params 
@@ -129,12 +129,15 @@ int fill_http_request(http_request_t *req, const char *string_req)
                break;
           case 2:
 // search for http protocol 
-               req->http_proto=find_http_protocol_version(tok);
+               if((req->http_proto=find_http_protocol_version(tok)))
+                   return -1;
                break;
       }
       i++; 
 	  tok = strtok(NULL, delim);
    }
+   if( i != 3 )
+       return -1;
    free(tmp);
 return 0;
 }
