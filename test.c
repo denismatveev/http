@@ -10,8 +10,8 @@
        {
          printf("input request: %s\n", test_str[i]);
          fill_http_request(&q, test_str[i]);
-//         printf("method: %u\nprotocol: %u\nparams: %s\n",http_method[q.method] , http_protocol_version[q.http_proto] , q.params);
-         printf("method: %u\nprotocol: %u\nparams: %s\n",q.method , q.http_proto , q.params);
+         printf("method: %s\nprotocol: %s\nparams: %s\n",http_method[q.method] , http_protocol_version[q.http_proto] , q.params);
+         //printf("method: %u\nprotocol: %u\nparams: %s\n",q.method , q.http_proto , q.params);
  
        }
  }

@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #define PARAMS_STRING_LENGTH 131072
 
+extern char *http_method[], *http_protocol_version[];
 /* enumeration of all available HTTP methods */
 typedef enum http_method
 {
@@ -36,7 +37,6 @@ typedef enum http_protocol_version
     HTTP11 = 0,
     HTTP2
 } http_protocol_version_t;
-
 http_method_t find_http_method(const char *sval);
 http_protocol_version_t find_http_protocol_version(const char *sval);
 int setnonblocking (int);
@@ -50,5 +50,5 @@ typedef struct __http_request
     http_protocol_version_t http_proto;
     char params[PARAMS_STRING_LENGTH];//128 kb maximum
 } http_request_t;
-int fill_http_request(http_request_t *, char *);
+int fill_http_request(http_request_t *, const char *);
 #endif /*_HTTPD_*/

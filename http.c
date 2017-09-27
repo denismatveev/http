@@ -105,35 +105,36 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
     return -1;
 }
 
-int fill_http_request(http_request_t *req, char *string_req)
+int fill_http_request(http_request_t *req, const char *string_req)
 {
    if(string_req == NULL)
 	   return -1;
    const char *delim = " ";
    char *tok;
    unsigned int i = 0;
-   tok = strtok(string_req, delim);
-   //printf("%s\n",tok);
+   char *tmp =strdup(string_req);
+   tok = strtok(tmp,delim);
+   
    while(tok != NULL && i < 3)
    {
-	  //printf("tok=%s\n",tok);
       switch(i)
       {
           case 0:
-/* search for request method */
+// search for request method 
                req->method=find_http_method(tok);
                break;
           case 1:
-/* search for params */
+// search for params 
                strncpy(req->params, tok, PARAMS_STRING_LENGTH);
                break;
           case 2:
-/* search for http protocol */
+// search for http protocol 
                req->http_proto=find_http_protocol_version(tok);
                break;
       }
       i++; 
 	  tok = strtok(NULL, delim);
    }
+   free(tmp);
 return 0;
 }
