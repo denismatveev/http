@@ -1,6 +1,6 @@
 CC=gcc
-SRC=main.c http.c 
-TEST_SRC=http.c test.c
+SRC=main.c http.c jobs_queue.c
+TEST_SRC=http.c test.c jobs_queue.c
 CFLAGS=-Wall -O3 -I. 
 EXEC=httpd
 EXEC_TEST=test
