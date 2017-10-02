@@ -19,7 +19,7 @@ void test_req_parsing()
 }
 int test_queue()
 {
-  char *test_str[] = {"   GET / HTTP/1.1 ", "GET /index.html HTTP/1.1", "GET /index.php?a=12&bb=32 HTTP/2 ","   POST  / HTTP/1.1"};
+  char *test_str[] = {"   GET /1 HTTP/1.1 ", "GET /2 HTTP/1.1", "GET /3 HTTP/2 ","   POST  /4 HTTP/1.1"};
   http_request_t q[4];
   jobs_queue_t *queue = init_jobs_queue();
   int i,k,size;

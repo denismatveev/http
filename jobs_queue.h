@@ -2,8 +2,8 @@
 #define JOBS_QUEUE
 #include <malloc.h>
 #include"http.h"
-//#define QUEUE_SIZE_RESERVE 102400
-#define QUEUE_SIZE_RESERVE 12
+#define QUEUE_SIZE_RESERVE 102400
+
 typedef struct __job
 {
     http_request_t *req;
