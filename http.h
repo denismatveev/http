@@ -37,6 +37,36 @@ typedef enum http_protocol_version
     HTTP11 = 0,
     HTTP2
 } http_protocol_version_t;
+// I need to implement only 200, 400 and 404 responses
+typedef enum status_code
+{
+
+
+
+}status_code_t;
+
+typedef enum reason_phrase
+{
+  Bad_Request = 400,
+  Not_found = 404,
+  OK = 200
+}reason_phrase_t;
+
+
+typedef struct __response
+{
+  http_protocol_version_t proto;
+  unsigned int code;
+  char *Status_Line;
+
+}response;
+
+int create_status_line(http_method_t h, status_code_t sc, reason_phrase_t rp)
+{
+
+}
+//see https://rfc2.ru/2068.rfc/30#p6
+
 http_method_t find_http_method(const char *sval);
 http_protocol_version_t find_http_protocol_version(const char *sval);
 int setnonblocking (int);
