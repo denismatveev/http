@@ -40,28 +40,23 @@ typedef enum http_protocol_version
 // I need to implement only 200, 400 and 404 responses
 typedef enum status_code
 {
-
-
-
-}status_code_t;
-
-typedef enum reason_phrase
-{
   Bad_Request = 400,
   Not_found = 404,
   OK = 200
-}reason_phrase_t;
 
+}status_code_t;
+
+status_code_t find_status_code(const char *sval);
 
 typedef struct __response
 {
   http_protocol_version_t proto;
-  unsigned int code;
+  status_code_t code;
   char *Status_Line;
 
 }response;
 
-int create_status_line(http_method_t h, status_code_t sc, reason_phrase_t rp)
+int create_status_line(http_method_t h, status_code_t sc)
 {
 
 }

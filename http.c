@@ -5,7 +5,8 @@
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
 /* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
-char *status_code[] = {"Bad Request", "Not Found", "OK"};
+char *status_code[] = {"Bad Request", "Not Found", "OK", NULL};
+
 void WriteLog(const char *format, ...)
 {
   va_list args;
