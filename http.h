@@ -38,32 +38,43 @@ typedef enum http_protocol_version
     HTTP2
 } http_protocol_version_t;
 // I need to implement only 200, 400 and 404 responses
-typedef enum status_code
+typedef enum reason_code
 {
   Bad_Request = 400,
   Not_found = 404,
   OK = 200
+}reason_code_t;
 
-}status_code_t;
-
-status_code_t find_status_code(const char *sval);
+typedef enum response_header
+{
+  Age = 0,
+  Location,
+  Proxy_Authenticate,
+  Public,
+  Retry_After,
+  Server,
+  Vary,
+  Warning,
+  WWW_Authenticate
+}response_header_t;
 
 typedef struct __response
 {
-  http_protocol_version_t proto;
-  status_code_t code;
-  char *Status_Line;
-
+  char *status_line;
+  char *response_header;
+  int message_body;//Most likely this should be a http file, descriptor int
 }response;
 
-int create_status_line(http_method_t h, status_code_t sc)
-{
 
-}
+int create_status_line(char*, const http_protocol_version_t, const reason_code_t);
+int create_response_header(char*, const response_header_t, const char *);
+int create_response(char*, char*, int);
+
 //see https://rfc2.ru/2068.rfc/30#p6
+//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 
-http_method_t find_http_method(const char *sval);
-http_protocol_version_t find_http_protocol_version(const char *sval);
+http_method_t find_http_method(const char *);
+http_protocol_version_t find_http_protocol_version(const char *);
 int setnonblocking (int);
 void process_request(int, struct sockaddr_in*);
 void WriteLog(const char *format, ...);

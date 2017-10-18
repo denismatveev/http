@@ -5,8 +5,17 @@
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
 /* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
-char *status_code[] = {"Bad Request", "Not Found", "OK", NULL};
-
+char *reason_code[] = {"Bad Request", "Not Found", "OK"};
+char *response_header[] = {  "Age",
+                             "Location",
+                             "Proxy-Authenticate",
+                             "Public",
+                             "Retry-After",
+                             "Server",
+                             "Vary",
+                             "Warning",
+                             "WWW-Authenticate"
+                          };
 void WriteLog(const char *format, ...)
 {
   va_list args;
