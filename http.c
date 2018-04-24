@@ -132,7 +132,10 @@ int fill_http_request(http_request_t *req, const char *string_req)
         case 0:
           // search for request method
           if((req->method=find_http_method(tok)) == -1)
-            return -1;
+          {
+            free(tmp);
+            return -1; 
+          }
           break;
         case 1:
           // search for params
@@ -141,7 +144,10 @@ int fill_http_request(http_request_t *req, const char *string_req)
         case 2:
           // search for http protocol
           if((req->http_proto=find_http_protocol_version(tok)) == -1)
+          {
+            free(tmp);
             return -1;
+          }
           break;
         }
       i++;
