@@ -5,6 +5,8 @@
 
 #include"http.h"
 #define MAX_EVENTS 10
+char *cfgFile = NULL;
+char *cfgFilePath="/etc/lhttpd/lhttpd.conf";//default config file name
 
 int main(int argc, char** argv)
 {
@@ -18,6 +20,30 @@ int main(int argc, char** argv)
   struct epoll_event ev, events[MAX_EVENTS];
   const int on = 1;
   pid_t pid;
+  char c;
+
+
+
+
+  while ((c = getopt (argc, argv, ":c:")) != -1)
+  {
+      switch (c)
+      {
+      case 'c':
+          cfgFile = optarg;
+          break;
+      case '?':
+          fprintf(stderr, "Unknown option -%c\n", optopt);
+          exit(EXIT_FAILURE);
+      case ':':
+          fprintf(stderr, "Option -%c requires an argument\n", optopt);
+          exit(EXIT_FAILURE);
+      default:
+          exit(EXIT_FAILURE);
+      }
+  }
+  if(cfgFile == NULL)
+    cfgFile=cfgFilePath;
 
 
   pid=fork();//child process

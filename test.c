@@ -1,5 +1,6 @@
 #include"http.h"
 #include"jobs_queue.h"
+#include "parse_config.h"
 /* tests */
 void test_req_parsing()
 {
@@ -74,8 +75,20 @@ int test_queue()
 
 }
 
+int test_parse_config()
+{
+
+  config cfg;
+
+
+  parse_cfg(&cfg, "/home/dmat/projects/http/lhttpd.cfg");
+
+
+}
+
 int main(int argc, char ** argv)
 {
-  return test_queue();
+  test_parse_config();
+//  return test_queue();
 }
 

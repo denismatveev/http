@@ -27,7 +27,8 @@ void WriteLog(const char *format, ...)
 }
 void WriteLogPError(const char * strerr)
 {
-  syslog(LOG_LOCAL0, "%s%s%s\n", strerr, ": ", strerror(errno));
+  int err=errno;
+  syslog(LOG_LOCAL0, "%s%s%s\n", strerr, ": ", strerror(err));
 
   return;
 }
