@@ -13,7 +13,6 @@ int parse_cfg(config *cfg, const char* fname)
   char end=';';
   int port;
   char *strparam;
-  char dst[256];
 
 
   WriteLog("Parsing config file %s", fname);
