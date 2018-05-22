@@ -94,9 +94,7 @@ char* parse_str(char* wholestr, char delim, char ending)
     *strend=0;
   if((r=strchr(wholestr,delim)) != NULL)
   {
-    while(!isblank(*(r++)))
-      ;
-    if((e=strchr(r, ending)) == NULL)
+    if((e=strchr(++r, ending)) == NULL)
       return NULL;
     *e=0;
 
