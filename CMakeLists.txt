@@ -5,6 +5,7 @@ add_library(httpd
 http.c 
 jobs_queue.c
 parse_config.c
+worker.c
 )
 add_executable(lhttpd
 main.c

@@ -78,7 +78,7 @@ int test_queue()
 int test_parse_config()
 {
 
-  config cfg;
+  config_t cfg;
 
 
   parse_cfg(&cfg, "/home/dmat/projects/http/lhttpd.cfg");

@@ -3,7 +3,7 @@
 #include "string.h"
 #include "stdlib.h"
 
-int parse_cfg(config *cfg, const char* fname)
+int parse_cfg(config_t *cfg, const char* fname)
 {
   FILE *f;
   int r=0;
@@ -103,4 +103,12 @@ char* parse_str(char* wholestr, char delim, char ending)
   else
     return NULL;
 
+}
+
+void default_cfg(config_t* cfg)
+{
+  cfg->listen.sin_port=htons(80);
+  strncpy(cfg->rootdir,"/var/www/",9);
+  cfg->workers=4;
+  inet_pton(AF_INET,"0.0.0.0",&cfg->listen.sin_addr.s_addr);
 }

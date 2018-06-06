@@ -83,7 +83,7 @@ typedef struct __http_request
 {
     http_method_t method;  
     http_protocol_version_t http_proto;
-    char params[PARAMS_STRING_LENGTH];//128 kb maximum
+    char params[PARAMS_STRING_LENGTH];//128 kb maximum, it is filename
 } http_request_t;
 int fill_http_request(http_request_t *, const char *);
 #endif /*_HTTPD_*/
