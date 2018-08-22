@@ -1,20 +1,29 @@
 cmake_minimum_required(VERSION 3.2)
-project(lhttpd)
+#swd - simple web daemon
+project(swd)
 include_directories(.)
-add_library(httpd
-http.c 
-jobs_queue.c
-parse_config.c
-worker.c
-)
-add_executable(lhttpd
-main.c
-)
+add_library(http
+    http.c
+    common.c
+    )
+add_library(swdlib
+    listener.c
+    worker.c
+    ioworker.c
+    jobs_queue.c
+    parse_config.c
+    http.c
+    common.c
+    )
 
-add_executable(test_lhttpd
-test.c
-)
-target_link_libraries(lhttpd httpd)
-target_link_libraries(test_lhttpd httpd)
+add_executable(swd
+    main.c
+    )
+
+add_executable(test_swd
+    test.c
+    )
+target_link_libraries(swd http swdlib pthread)
+target_link_libraries(test_swd http swdlib pthread)
 
 

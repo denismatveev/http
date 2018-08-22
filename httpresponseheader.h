@@ -2,7 +2,7 @@
 #define HTTPRESPONSEHEADER_H
 
 typedef struct HTTPResponseHeader{
-  char servername = "mininginx";
+  char servername = "swd";
   char date[96];
   int contentlength;
   char contenttype = "Content-Type: text/html; charset=utf-8";

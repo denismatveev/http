@@ -1,5 +1,5 @@
-#ifndef _HTTPD_
-#define _HTTPD_
+#ifndef _HTTP_H
+#define _HTTP_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,13 +9,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <limits.h>
-#include <sys/epoll.h>
+
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
 #include <syslog.h>
 #include <stdarg.h>
 #include <sys/stat.h>
+#include "common.h"
 #define PARAMS_STRING_LENGTH 131072
 
 extern char *http_method[], *http_protocol_version[];
@@ -75,10 +76,9 @@ int create_response(char*, char*, int);
 
 http_method_t find_http_method(const char *);
 http_protocol_version_t find_http_protocol_version(const char *);
-int setnonblocking (int);
+
 void process_request(int, struct sockaddr_in*);
-void WriteLog(const char *format, ...);
-void WriteLogPError(const char*);
+
 typedef struct __http_request
 {
     http_method_t method;  
@@ -86,4 +86,4 @@ typedef struct __http_request
     char params[PARAMS_STRING_LENGTH];//128 kb maximum, it is filename
 } http_request_t;
 int fill_http_request(http_request_t *, const char *);
-#endif /*_HTTPD_*/
+#endif /*_HTTP_H*/
