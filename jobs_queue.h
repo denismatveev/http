@@ -25,7 +25,7 @@ typedef jobs_queue jobs_queue_t;
 
 // functions
 
-job_t* create_job(http_request_t* ht);
+job_t* create_job(const char* buff);
 void destroy_job(job_t*);
 
 jobs_queue_t* init_jobs_queue();

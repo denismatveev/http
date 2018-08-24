@@ -9,7 +9,6 @@ add_library(http
 add_library(swdlib
     listener.c
     worker.c
-    ioworker.c
     jobs_queue.c
     parse_config.c
     http.c
@@ -20,10 +19,10 @@ add_executable(swd
     main.c
     )
 
-add_executable(test_swd
-    test.c
-    )
+#add_executable(test_swd
+#    test.c
+#    )
 target_link_libraries(swd http swdlib pthread)
-target_link_libraries(test_swd http swdlib pthread)
+#target_link_libraries(test_swd http swdlib pthread)
 
 

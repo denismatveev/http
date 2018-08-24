@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include "common.h"
 #define PARAMS_STRING_LENGTH 131072
+#define LREQUEST 131110
 
 extern char *http_method[], *http_protocol_version[];
 /* enumeration of all available HTTP methods */
@@ -85,5 +86,10 @@ typedef struct __http_request
     http_protocol_version_t http_proto;
     char params[PARAMS_STRING_LENGTH];//128 kb maximum, it is filename
 } http_request_t;
-int fill_http_request(http_request_t *, const char *);
+
+
+http_request_t* fill_http_request(const char *);
+
+void destroy_http_request(http_request_t*);
+
 #endif /*_HTTP_H*/

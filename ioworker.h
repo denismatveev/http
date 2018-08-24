@@ -7,9 +7,7 @@
 #include <sys/epoll.h>
 #include <string.h>
 #include <stdlib.h>
-#define MAX_EVENTS 10
 
-int create_ioworkers(int sock, int number_pthreads);
-void destroy_ioworkers(int number_pthreads);
-void* start_pthread_ioworker(void* sock);
+
+
 #endif //IOWORKER_H

@@ -1,5 +1,5 @@
 #include"http.h"
-#define LREQUEST 1024
+
 #define MAX_EVENTS 10
 /* array of strings to search symbol name of HTTP method */
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
@@ -37,45 +37,57 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
   return -1;
 }
 
-int fill_http_request(http_request_t *req, const char *string_req)
+http_request_t* fill_http_request(const char *string_req)
 {
   if(string_req == NULL)
-    return -1;
+    return NULL;
   const char *delim = " ";
   char *tok;
   unsigned int i = 0;
-  char *tmp =strdup(string_req);
+  char *tmp;
+  if((tmp = strdup(string_req)) == NULL)
+    return NULL;
   tok = strtok(tmp,delim);
+
+  http_request_t* ht;
+
+  if((ht=(http_request_t*)malloc(sizeof(http_request_t))) == NULL)
+    return NULL;
+
   while(tok != NULL && i < 3)
+  {
+    switch(i)
     {
-      switch(i)
-        {
-        case 0:
-          // search for request method
-          if((req->method=find_http_method(tok)) == -1)
-          {
-            free(tmp);
-            return -1; 
-          }
-          break;
-        case 1:
-          // search for params
-          strncpy(req->params, tok, PARAMS_STRING_LENGTH);
-          break;
-        case 2:
-          // search for http protocol
-          if((req->http_proto=find_http_protocol_version(tok)) == -1)
-          {
-            free(tmp);
-            return -1;
-          }
-          break;
-        }
-      i++;
-      tok = strtok(NULL, delim);
+    case 0:
+      // search for request method
+      if((ht->method=find_http_method(tok)) == -1)
+        goto free;
+      break;
+    case 1:
+      // search for params
+      strncpy(ht->params, tok, PARAMS_STRING_LENGTH);
+      break;
+    case 2:
+      // search for http protocol
+      if((ht->http_proto=find_http_protocol_version(tok)) == -1)
+        goto free;
+      break;
     }
+    i++;
+    tok = strtok(NULL, delim);
+  }
   if( i != 3 )
-    return -1;
+    goto free;
+
   free(tmp);
-  return 0;
+  return ht;
+free:
+    free(tmp);
+    free(ht);
+    return NULL;
+}
+
+destroy_http_request(http_request_t * ht)
+{
+  free(ht);
 }
