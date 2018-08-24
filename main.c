@@ -86,8 +86,8 @@ int main(int argc, char** argv)
   jobs=init_jobs_queue();
   create_listener();
 
-  //TODO create workers
-  // worker is a thread that waits for somw data in a the queue, by signal of cond variable takes a job from the queue and send answer to client
+  // TODO create workers
+  // worker is a thread that waits for some data in a the queue, by signal of cond variable takes a job from the queue and send answer to client
 
   close_jobs_queue(jobs);
 

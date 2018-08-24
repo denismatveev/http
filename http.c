@@ -82,12 +82,12 @@ http_request_t* fill_http_request(const char *string_req)
   free(tmp);
   return ht;
 free:
-    free(tmp);
-    free(ht);
-    return NULL;
+  free(tmp);
+  free(ht);
+  return NULL;
 }
 
-destroy_http_request(http_request_t * ht)
+void destroy_http_request(http_request_t * ht)
 {
   free(ht);
 }
