@@ -1,23 +1,18 @@
-#ifndef __WORKER_H__
-#define __WORKER_H__
+#ifndef IOWORKER_H
+#define IOWORKER_H
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <string.h>
+#include <stdlib.h>
+#define MAX_EVENTS 10
 
-#include "jobs_queue.h"
-#include <pthread.h>
+void create_ioworker(int sock);
 
-typedef struct _worker
-{
-  job_t* job;
-  pthread_t threadid;
 
-} worker;
 
-typedef worker* worker_t;
 
-worker_t init_worker();
-void delete_worker(worker_t);
-void request_handle(http_request_t*);
 
-int create_workers(int n);// creates number of threads
-int destroy_workers(int n);
-
-#endif //__WORKER_H__
+#endif //IOWORKER_H

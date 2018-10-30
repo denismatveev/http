@@ -19,10 +19,10 @@ add_executable(swd
     main.c
     )
 
-#add_executable(test_swd
-#    test.c
-#    )
+add_executable(test_swd
+    #    test.c
+    http_test.c
+    )
 target_link_libraries(swd http swdlib pthread)
-#target_link_libraries(test_swd http swdlib pthread)
-
+target_link_libraries(test_swd http swdlib pthread)
 

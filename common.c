@@ -35,3 +35,8 @@ void WriteLogPError(const char * strerr)
 
   return;
 }
+// for 32 bits int it is sufficient to allocate an array 12 bytes(12 chars).
+int int_to_str(char *str, int number)
+{
+  return sprintf(str,"%d", number);
+}

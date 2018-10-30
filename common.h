@@ -20,5 +20,6 @@
 void WriteLog(const char *format, ...);
 void WriteLogPError(const char*);
 int setnonblocking (int);
+int int_to_str(char *str, int number);
 
 #endif //COMMON_H
