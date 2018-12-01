@@ -10,6 +10,7 @@ typedef struct __job
 {
   http_request_t *req;
   raw_client_data_t *raw_data;
+  http_response_t *response;
 } job;
 
 typedef job job_t;
@@ -27,7 +28,7 @@ typedef jobs_queue jobs_queue_t;
 
 // functions
 
-job_t* create_job(http_request_t *, raw_client_data_t *);
+job_t* create_job();
 void destroy_job(job_t*);
 
 jobs_queue_t* init_jobs_queue();

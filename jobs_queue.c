@@ -4,17 +4,26 @@
 #include"jobs_queue.h"
 #include "common.h"
 
-job_t* create_job(http_request_t *ht, raw_client_data_t *rd)
+job_t* create_job()
 {
   job_t* j;
+  raw_client_data_t* rd;
+  http_request_t* ht;
+  http_response_t* response;
+
   if((j =(job_t*)malloc(sizeof(job_t))) == NULL)
     return NULL;
   if(j->raw_data == NULL || j->req == NULL)
     return NULL;
+  if((ht = create_request()) == NULL)
+    return NULL;
+  if((rd = create_raw_data()) == NULL)
+    return NULL;
+  if((response = create_http_response()) == NULL)
+    return NULL;
   j->req=ht;
   j->raw_data=rd;
-
-  http_request_from_raw_data(j->req, j->raw_data);
+  j->response=response;
 
   return j;
 

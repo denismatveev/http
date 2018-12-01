@@ -40,14 +40,14 @@ typedef enum http_protocol_version
   HTTP11 = 0,
   HTTP2
 } http_protocol_version_t;
-// I need to implement only 200, 400 and 404 responses
+
 typedef enum reason_code
 {
   Bad_Request = 400,
   Not_found = 404,
-  OK = 200
+  OK = 200,
+  Internal_Error = 500
 }http_reason_code_t;
-
 
 typedef struct http_response_header
 {
@@ -66,8 +66,9 @@ typedef struct __response
 
 
 int create_status_line(char*, size_t, http_protocol_version_t, http_reason_code_t);
-http_response_t* create_response(const char*);
-int delete_http_response(http_response_t*);
+http_response_t* create_http_response();
+void fill_http_response(http_response_t *resp, const char* status_line);
+void delete_http_response(http_response_t*);
 int reason_code_to_str(char *, size_t, http_reason_code_t);
 //see https://rfc2.ru/2068.rfc/30#p6
 //Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
@@ -95,6 +96,8 @@ typedef struct __client_data
 
 raw_client_data_t* create_raw_data();
 void delete_raw_data(raw_client_data_t*);
-int http_request_from_raw_data(http_request_t *ht, const raw_client_data_t *rd);
-int run_request(http_response_t* resp, const http_request_t *ht, int client_sock);
+int create_http_request_from_raw_data(http_request_t *ht, const raw_client_data_t *rd);
+int get_current_date_string(char* date, size_t n);
+int create_date_header(char* dheader, size_t n);
+int create_server_header(char* server_name, size_t len);
 #endif /*_HTTP_H*/

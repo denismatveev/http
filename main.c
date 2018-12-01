@@ -1,9 +1,4 @@
-//TODO web server logs to write
-//TODO multithread or multiprocess
-//TODO config
-//TODO parse request and make response
-
-#include"http.h"
+#include "http.h"
 #include "parse_config.h"
 #include "listener.h"
 #include "worker.h"
@@ -11,7 +6,9 @@
 #include <pthread.h>
 
 char *cfgFile = NULL;
-char *cfgFilePath="/etc/swd/swd.conf";//default config file name
+char *cfgFilePath="/etc/swd/swd.conf"; // default config file name
+extern jobs_queue_t* input_queue;
+extern jobs_queue_t* output_queue;
 
 int main(int argc, char** argv)
 {
@@ -22,7 +19,6 @@ int main(int argc, char** argv)
   pid_t pid;
   char c;
   config_t cfg;
-
 
   while ((c = getopt (argc, argv, ":c:")) != -1)
     {
@@ -82,12 +78,11 @@ int main(int argc, char** argv)
   fclose(stderr);
   fclose(stdin);
   fclose(stdout);
-
+  chdir(cfg.rootdir);
+  input_queue = init_jobs_queue();
+  input_queue = init_jobs_queue();
   sock=create_listener();
   create_ioworker(sock);
-
-
-
 
   close(sock);
 

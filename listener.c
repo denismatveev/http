@@ -4,7 +4,7 @@
 int create_listener()
 {
   int sockfd,r;
-  char* inetaddr="0.0.0.0";
+  char* inetaddr="0.0.0.0";// TODO should be taken from config
   int portno=80;
   struct sockaddr_in serv_addr;
 
@@ -45,6 +45,4 @@ int create_listener()
 
 
   return sockfd;
-
-
 }
