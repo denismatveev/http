@@ -5,6 +5,7 @@
 #include "stdlib.h"
 #include "jobs_queue.h"
 #include <errno.h>
+#include <sys/sendfile.h>
 
 extern config_t cfg;
 jobs_queue_t* input_queue;
@@ -36,7 +37,7 @@ void create_ioworker(int sockfd)
       WriteLogPError("epoll_ctl");
       exit(EXIT_FAILURE);
     }
-  //TODO the cycle below place into dedicated thread
+  //TODO the cycle below to be placed into dedicated thread
   for (;;)
     {
       nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
@@ -70,27 +71,12 @@ void create_ioworker(int sockfd)
               // event on accepted socket
               // create job and place into input queue
               create_job_with_raw_data_and_place_into_input_queue(input_queue, events[n].data.fd);
+              process_jobs(input_queue, output_queue);
               send_data_from_output_queue(output_queue);
               shutdown(events[n].data.fd, SHUT_RD); //shutdown is needed only if got a request for disconnecting
             }
         }
     }
-}
-
-int run_workers(int number_threads)
-{
-  // функция создает треды и распределяет работу
-  int i;
-  // треды смотрят очередь, просыпаются по сигналу, берут работу и выполняют ее(парсят запрос, ищут файл, готовят ответ, все это
-  // помещают в структуру)
-  // отправлять ответ в клиентский сокет
-
-  for(i = 0;i < number_threads; i++)
-    {
-      //pthread_create();
-
-    }
-
 }
 
 int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs_queue, int client_sock)
@@ -118,9 +104,9 @@ int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs
 int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
 {
   job_t *job;
-  int errsv;
-
-  int fd;// file desctiptor of opened file
+  int err;
+  int ret;
+  int fd;// file desctiptor of opened file to be sent
 
   if(pop_job(input, &job))
     {
@@ -128,29 +114,68 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
       return -1;
 
     }
-  // парсим сырые данные и формируем запрос
+  // parsing raw client data and create a http_request
 
-  create_http_request_from_raw_data(job->req, job->raw_data);
+  ret=create_http_request_from_raw_data(job->req, job->raw_data);
 
-  // находим файл и формируем ответ
+  // depending on what data are in http_request we are making a reply
 
-  fd = open(job->req->params,O_RDONLY);
-
-  if(fd < 0)
+  if(ret < 0 )
     {
-      errsv = errno;
-      if(errno == EACCES)
-        {
-          //
-        }
-
+      // bad request
+      create_400_reply(job->response, job->req);
+      fd=open("error_pages/400.html",O_RDONLY );
+      job->response->message_body=fd;
+      job->response->header.content_length=findout_filesize(fd);
 
     }
+  else
+    if(job->req->http_proto != HTTP11 || job->req->method != GET)
+      {
+        // not implemented
+        create_501_reply(job->response, job->req);
+        fd=open("error_pages/501.html",O_RDONLY );
+        job->response->message_body=fd;
+        job->response->header.content_length=findout_filesize(fd);
+      }
 
+  // finding a file and creating a reply
+    else
+      {
+        fd = open(job->req->params,O_RDONLY);
 
+        if(fd > 0)
+          {
+            //everything is OK
+            create_200_reply(job->response, job->req);
+            job->response->message_body=fd;
+            job->response->header.content_length=findout_filesize(fd);
+          }
+        else if(fd < 0)
+          {
+            //something went wrong
+            err = errno;
+            if(err == EACCES)
+              {
+                //no such file
+                create_404_reply(job->response, job->req);
+                fd=open("error_pages/404.html",O_RDONLY );
+                job->response->message_body=fd;
+                job->response->header.content_length=findout_filesize(fd);
 
+              }
+            else if(err == ENFILE || err == ELOOP)
+              {
+                //specific errors
+                create_500_reply(job->response, job->req);
+                fd=open("error_pages/500.html",O_RDONLY );
+                job->response->message_body=fd;
+                job->response->header.content_length=findout_filesize(fd);
+              }
+          }
+      }
 
-  //  помещаем в исходящую очередь
+  //  pushing the job into output queue
 
   if(push_job(output, job))
     {
@@ -158,18 +183,68 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
       return -1;
     }
 }
+
+
 size_t send_data_from_output_queue(jobs_queue_t* output_queue)
 {
 
   job_t* job;
+  char serialized_headers[512];
+  size_t headers_len;
+  size_t sent_bytes;
 
-  push_job(output_queue, job);
+  pop_job(output_queue, &job);
 
-  // отправляем ответ
+  // create serialized http header
+  headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 128);
 
-
+  // sending an answer
+  // At first we need to send headers and then file
+  sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
+  sent_bytes += sendfile(job->raw_data->client_socket,job->response->message_body, NULL, job->response->header.content_length);
 
   // deleting all allocated resources
 
+  close(job->response->message_body);
   destroy_job(job);
+
+  return sent_bytes;
+}
+
+
+int run_workers(int number_threads)
+{
+  // функция создает треды и распределяет работу
+  int i;
+  // треды смотрят очередь, просыпаются по сигналу, берут работу и выполняют ее(парсят запрос, ищут файл, готовят ответ, все это
+  // помещают в структуру)
+  // отправлять ответ в клиентский сокет
+
+  // pthread_getcpuclockid and clock_gettime to calculate CPU utilization by thread
+  // https://stackoverflow.com/questions/18638590/can-i-measure-the-cpu-usage-in-linux-by-thread-into-application
+  //  double cpuNow( void ) {
+  //      struct timespec ts;
+  //      clockid_t cid;
+
+  //      pthread_getcpuclockid(pthread_self(), &cid);
+  //      clock_gettime(cid, &ts);
+  //      return ts.tv_sec + (((double)ts.tv_nsec)*0.000000001);
+  //  }
+
+  for(i = 0;i < number_threads; i++)
+    {
+      //pthread_create();
+
+    }
+
+}
+long findout_filesize(int fd)
+{
+  long size;
+
+  size=lseek(fd, 0L, SEEK_END);
+  lseek(fd,0L, SEEK_SET);
+
+  return size;
+
 }

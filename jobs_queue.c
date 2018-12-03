@@ -13,8 +13,6 @@ job_t* create_job()
 
   if((j =(job_t*)malloc(sizeof(job_t))) == NULL)
     return NULL;
-  if(j->raw_data == NULL || j->req == NULL)
-    return NULL;
   if((ht = create_request()) == NULL)
     return NULL;
   if((rd = create_raw_data()) == NULL)
@@ -37,7 +35,8 @@ void destroy_job(job_t* j)
       return;
     }
   delete_raw_data(j->raw_data);
-  delete_request(j->req);
+  delete_http_request(j->req);
+  delete_http_response(j->response);
   free(j);
 
 }

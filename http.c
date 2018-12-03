@@ -10,7 +10,8 @@
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
 /* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
-char *reason_code_name[] = {"Bad Request", "Not Found", "OK"};
+char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
+char* content_type[] = {"html/text"};
 http_method_t find_http_method(const char *sval)
 {
   http_method_t result = GET; /* value corresponding to etable[0] */
@@ -29,6 +30,24 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
       return result;
   return -1;
 }
+
+// convert content_type into string
+
+int content_type_to_str(char *str, size_t len, http_content_type_t ct)
+{
+  size_t content_type_length;
+  switch (ct) {
+    case 0:
+      content_type_length=strlen(content_type[0]);
+      if(len <= content_type_length)
+        return 1;
+      strcpy(str,content_type[0]);
+      break;
+    default:
+      return -1;
+    }
+}
+
 
 // convert reason code into value, ie 404 -> Not Found
 
@@ -57,11 +76,21 @@ int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
         return 1;
       strcpy(str,reason_code_name[2]);
       break;
+    case 500:
+      reason_code_size=strlen(reason_code_name[3]);
+      if(len <= reason_code_size)
+        return 1;
+      strcpy(str,reason_code_name[3]);
+      break;
+    case 501:
+      reason_code_size=strlen(reason_code_name[4]);
+      if(len <= reason_code_size)
+        return 1;
+      strcpy(str,reason_code_name[4]);
+      break;
 deafult:
       return -1;
     }
-  str[reason_code_size] = 0;
-
   return 0;
 }
 
@@ -123,7 +152,7 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
           if((req->http_proto=find_http_protocol_version(tok)) == -1)
             {
               free(tmp);
-              return -1;
+              return -2;
             }
           break;
         }
@@ -131,7 +160,7 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
       tok = strtok(NULL, delim);
     }
   if( i != 3 )
-    return -1;
+    return -3;
   free(tmp);
   return 0;
 }
@@ -146,15 +175,10 @@ http_request_t* create_request()
   return htp;
 }
 
-void delete_request(http_request_t* ptr)
+void delete_http_request(http_request_t* ptr)
 {
   free(ptr);
 }
-
-
-/* Responses */
-
-
 
 
 raw_client_data_t* create_raw_data()
@@ -231,4 +255,68 @@ void fill_http_response(http_response_t *resp, const char* status_line)
 void delete_http_response(http_response_t *hp)
 {
   free(hp);
+}
+
+int create_200_reply(http_response_t* res, const http_request_t* req)
+{
+  char status_line[128];
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, 200)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
+
+  return 0;
+
+
+}
+int create_404_reply(http_response_t *res, const http_request_t* req)
+{
+  char status_line[128];
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, 404)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
+
+  return 0;
+}
+
+int create_500_reply(http_response_t *res, const http_request_t* req)
+{
+  char status_line[128];
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, 500)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
+
+  return 0;
+}
+
+int create_501_reply(http_response_t * res, const http_request_t* req)
+{
+  char status_line[128];
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, 501)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
+
+  return 0;
+}
+
+int create_400_reply(http_response_t *res, const http_request_t* req)
+{
+  char status_line[128];
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, 400)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
+
+  return 0;
+}
+
+int create_serialized_http_header(char* headers, http_response_header_t* rs, size_t len)
+{
+  int ret;
+  ret=snprintf(headers, len,"%s\n%s\n%s\n%s\n%lu\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);
+
+  return ret;
 }

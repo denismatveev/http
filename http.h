@@ -46,22 +46,29 @@ typedef enum reason_code
   Bad_Request = 400,
   Not_found = 404,
   OK = 200,
-  Internal_Error = 500
+  Internal_Error = 500,
+  Not_implemented = 501
 }http_reason_code_t;
+
+typedef enum content_type
+{
+  html_text = 0
+
+}http_content_type_t;
 
 typedef struct http_response_header
 {
-  char* status_line;
-  char* server;
-  char* date;
-  char* content_type;
+  char status_line[256];// size not taken from RFC
+  char server[256];
+  char date[256];
+  char content_type[256];
   size_t content_length;
 }http_response_header_t;
 
 typedef struct __response
 {
   http_response_header_t header;
-  int message_body;//Most likely this should be a http file, descriptor int
+  int message_body;// file descriptor int
 }http_response_t;
 
 
@@ -69,6 +76,7 @@ int create_status_line(char*, size_t, http_protocol_version_t, http_reason_code_
 http_response_t* create_http_response();
 void fill_http_response(http_response_t *resp, const char* status_line);
 void delete_http_response(http_response_t*);
+
 int reason_code_to_str(char *, size_t, http_reason_code_t);
 //see https://rfc2.ru/2068.rfc/30#p6
 //Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
@@ -86,7 +94,7 @@ typedef struct __http_request
 } http_request_t;
 
 http_request_t* create_request();
-void delete_request(http_request_t*);
+void delete_http_request(http_request_t*);
 
 typedef struct __client_data
 {
@@ -100,4 +108,11 @@ int create_http_request_from_raw_data(http_request_t *ht, const raw_client_data_
 int get_current_date_string(char* date, size_t n);
 int create_date_header(char* dheader, size_t n);
 int create_server_header(char* server_name, size_t len);
+
+int create_200_reply(http_response_t*,const http_request_t*);
+int create_404_reply(http_response_t*,const http_request_t*);
+int create_501_reply(http_response_t*,const http_request_t*);
+int create_500_reply(http_response_t*,const http_request_t*);
+int create_400_reply(http_response_t*,const http_request_t*);
+int create_serialized_http_header(char* serialized, http_response_header_t* rs, size_t size);
 #endif /*_HTTP_H*/
