@@ -1,15 +1,12 @@
 #include "worker.h"
 #include "common.h"
 #include "http.h"
+#include "parse_config.h"
 #include "pthread.h"
 #include "stdlib.h"
 #include "jobs_queue.h"
 #include <errno.h>
 #include <sys/sendfile.h>
-
-extern config_t cfg;
-jobs_queue_t* input_queue;
-jobs_queue_t* output_queue;
 
 void create_ioworker(int sockfd)
 {
@@ -23,6 +20,11 @@ void create_ioworker(int sockfd)
   socklen_t clilen;
   pthread_cond_t condition;
 
+  jobs_queue_t* input_queue;
+  jobs_queue_t* output_queue;
+
+  input_queue = init_jobs_queue();
+  output_queue = init_jobs_queue();
 
   epollfd = epoll_create1(0);
   if (epollfd == -1)
@@ -82,7 +84,7 @@ void create_ioworker(int sockfd)
 int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs_queue, int client_sock)
 {
   job_t *job;
-  size_t bytes_read;
+  ssize_t bytes_read;
 
   if((job = create_job()) == NULL)
     return -1;
@@ -126,7 +128,8 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
       create_400_reply(job->response, job->req);
       fd=open("error_pages/400.html",O_RDONLY );
       job->response->message_body=fd;
-      job->response->header.content_length=findout_filesize(fd);
+      job->response->header.content_length_num=findout_filesize(fd);
+      convert_content_length(&job->response->header);
 
     }
   else
@@ -136,7 +139,8 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
         create_501_reply(job->response, job->req);
         fd=open("error_pages/501.html",O_RDONLY );
         job->response->message_body=fd;
-        job->response->header.content_length=findout_filesize(fd);
+        job->response->header.content_length_num=findout_filesize(fd);
+        convert_content_length(&job->response->header);
       }
 
   // finding a file and creating a reply
@@ -149,7 +153,8 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
             //everything is OK
             create_200_reply(job->response, job->req);
             job->response->message_body=fd;
-            job->response->header.content_length=findout_filesize(fd);
+            job->response->header.content_length_num=findout_filesize(fd);
+            convert_content_length(&job->response->header);
           }
         else if(fd < 0)
           {
@@ -161,7 +166,8 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
                 create_404_reply(job->response, job->req);
                 fd=open("error_pages/404.html",O_RDONLY );
                 job->response->message_body=fd;
-                job->response->header.content_length=findout_filesize(fd);
+                job->response->header.content_length_num=findout_filesize(fd);
+                convert_content_length(&job->response->header);
 
               }
             else if(err == ENFILE || err == ELOOP)
@@ -170,7 +176,8 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
                 create_500_reply(job->response, job->req);
                 fd=open("error_pages/500.html",O_RDONLY );
                 job->response->message_body=fd;
-                job->response->header.content_length=findout_filesize(fd);
+                job->response->header.content_length_num=findout_filesize(fd);
+                convert_content_length(&job->response->header);
               }
           }
       }
@@ -182,16 +189,17 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
       WriteLog("Error occured while pushing a job into jobs queue\n");
       return -1;
     }
+  return 0;
 }
 
 
-size_t send_data_from_output_queue(jobs_queue_t* output_queue)
+ssize_t send_data_from_output_queue(jobs_queue_t* output_queue)
 {
 
   job_t* job;
   char serialized_headers[512];
   size_t headers_len;
-  size_t sent_bytes;
+  ssize_t sent_bytes;
 
   pop_job(output_queue, &job);
 
@@ -201,7 +209,7 @@ size_t send_data_from_output_queue(jobs_queue_t* output_queue)
   // sending an answer
   // At first we need to send headers and then file
   sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
-  sent_bytes += sendfile(job->raw_data->client_socket,job->response->message_body, NULL, job->response->header.content_length);
+  sent_bytes += sendfile(job->raw_data->client_socket,job->response->message_body, NULL, (size_t)job->response->header.content_length_num);
 
   // deleting all allocated resources
 
@@ -236,15 +244,5 @@ int run_workers(int number_threads)
       //pthread_create();
 
     }
-
-}
-long findout_filesize(int fd)
-{
-  long size;
-
-  size=lseek(fd, 0L, SEEK_END);
-  lseek(fd,0L, SEEK_SET);
-
-  return size;
-
+  return 0;
 }

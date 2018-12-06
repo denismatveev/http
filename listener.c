@@ -1,15 +1,17 @@
 #include"listener.h"
 #include "common.h"
+#include "parse_config.h"
 
 int create_listener()
 {
-  int sockfd,r;
-  char* inetaddr="0.0.0.0";// TODO should be taken from config
-  int portno=80;
+  config_t cfg;
+
+  int sockfd;
   struct sockaddr_in serv_addr;
 
-  serv_addr.sin_port=htons(portno);
-  serv_addr.sin_family=AF_INET;
+  serv_addr.sin_port=cfg.listen.sin_port;
+  serv_addr.sin_family=cfg.listen.sin_family;
+  serv_addr.sin_addr=cfg.listen.sin_addr;
   const int on = 1;
 
   memset(&serv_addr.sin_zero,0,8);
@@ -34,15 +36,6 @@ int create_listener()
       WriteLogPError("Can't Listen socket");
       exit(EXIT_FAILURE);
     }
-  if(!(r=inet_pton(AF_INET,inetaddr,&serv_addr.sin_addr.s_addr)))
-    WriteLogPError("init_pton");
-  else if(r < 0)
-    {
-      WriteLogPError("An error occured in address convertion from human readable to machine format");
-      exit(EXIT_FAILURE);
-    }
-  else ;
-
 
   return sockfd;
 }

@@ -28,10 +28,10 @@ typedef jobs_queue jobs_queue_t;
 
 // functions
 
-job_t* create_job();
+job_t* create_job(void);
 void destroy_job(job_t*);
 
-jobs_queue_t* init_jobs_queue();
+jobs_queue_t* init_jobs_queue(void);
 int close_jobs_queue(jobs_queue_t*);
 
 int push_job(jobs_queue_t*, job_t *);

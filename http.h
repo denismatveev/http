@@ -1,5 +1,5 @@
-#ifndef _HTTP_H
-#define _HTTP_H
+#ifndef HTTP_H
+#define HTTP_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +21,7 @@
 #define PARAMS_STRING_LENGTH 131072
 #define INITIAL_DATA_SIZE 132000 //method+params+proto+hostname
 
-extern char *http_method[], *http_protocol_version[];
+extern char *http_method[], *http_protocol_version[], *reason_code_name[], *content_type[];
 /* enumeration of all available HTTP methods */
 typedef enum http_method
 {
@@ -53,7 +53,6 @@ typedef enum reason_code
 typedef enum content_type
 {
   html_text = 0
-
 }http_content_type_t;
 
 typedef struct http_response_header
@@ -62,7 +61,8 @@ typedef struct http_response_header
   char server[256];
   char date[256];
   char content_type[256];
-  size_t content_length;
+  long content_length_num;
+  char content_length[256];
 }http_response_header_t;
 
 typedef struct __response
@@ -73,7 +73,7 @@ typedef struct __response
 
 
 int create_status_line(char*, size_t, http_protocol_version_t, http_reason_code_t);
-http_response_t* create_http_response();
+http_response_t* create_http_response(void);
 void fill_http_response(http_response_t *resp, const char* status_line);
 void delete_http_response(http_response_t*);
 
@@ -93,7 +93,7 @@ typedef struct __http_request
 
 } http_request_t;
 
-http_request_t* create_request();
+http_request_t* create_request(void);
 void delete_http_request(http_request_t*);
 
 typedef struct __client_data
@@ -102,7 +102,7 @@ typedef struct __client_data
   int client_socket;
 } raw_client_data_t;
 
-raw_client_data_t* create_raw_data();
+raw_client_data_t* create_raw_data(void);
 void delete_raw_data(raw_client_data_t*);
 int create_http_request_from_raw_data(http_request_t *ht, const raw_client_data_t *rd);
 int get_current_date_string(char* date, size_t n);
@@ -114,5 +114,7 @@ int create_404_reply(http_response_t*,const http_request_t*);
 int create_501_reply(http_response_t*,const http_request_t*);
 int create_500_reply(http_response_t*,const http_request_t*);
 int create_400_reply(http_response_t*,const http_request_t*);
-int create_serialized_http_header(char* serialized, http_response_header_t* rs, size_t size);
+size_t create_serialized_http_header(char* serialized, http_response_header_t* rs, size_t size);
+int convert_content_length(http_response_header_t* header);
+long findout_filesize(int fd);
 #endif /*_HTTP_H*/

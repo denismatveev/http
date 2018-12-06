@@ -11,7 +11,7 @@ char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIO
 /* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
 char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
-char* content_type[] = {"html/text"};
+char* content_type[] = {"Content-Type: html/text"};
 http_method_t find_http_method(const char *sval)
 {
   http_method_t result = GET; /* value corresponding to etable[0] */
@@ -36,7 +36,8 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
 int content_type_to_str(char *str, size_t len, http_content_type_t ct)
 {
   size_t content_type_length;
-  switch (ct) {
+  switch (ct)
+    {
     case 0:
       content_type_length=strlen(content_type[0]);
       if(len <= content_type_length)
@@ -46,6 +47,7 @@ int content_type_to_str(char *str, size_t len, http_content_type_t ct)
     default:
       return -1;
     }
+  return 0;
 }
 
 
@@ -88,7 +90,7 @@ int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
         return 1;
       strcpy(str,reason_code_name[4]);
       break;
-deafult:
+    default:
       return -1;
     }
   return 0;
@@ -226,7 +228,7 @@ int create_header_name_of_server(char* server_name, size_t len)
   return 0;
 }
 
-http_response_t* create_http_response()
+http_response_t* create_http_response(void)
 {
   http_response_t* resp;
   if((resp = (http_response_t*)malloc(sizeof(http_response_t))) == NULL)
@@ -245,8 +247,8 @@ void fill_http_response(http_response_t *resp, const char* status_line)
   strcpy(resp->header.status_line, status_line);
 
 
-  resp->header.content_length=0;//initially this equal zero
-  strcpy(resp->header.content_type, "Content-Type: text/html");
+  strcpy(resp->header.content_length,"Content-Length=0");// filling this header placed in futher in convert_content_length()
+  strcpy(resp->header.content_type, "Content-Type: text/html"); //TODO make depending on content
   strncpy(resp->header.server,server, strlen(server));
   strncpy(resp->header.date, date, strlen(date));
   resp->message_body=0;//must be file descriptor, initially equal zero
@@ -313,10 +315,30 @@ int create_400_reply(http_response_t *res, const http_request_t* req)
   return 0;
 }
 
-int create_serialized_http_header(char* headers, http_response_header_t* rs, size_t len)
+size_t create_serialized_http_header(char* headers, http_response_header_t* rs, size_t len)
 {
-  int ret;
-  ret=snprintf(headers, len,"%s\n%s\n%s\n%s\n%lu\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);
+  size_t ret;
+  ret=(size_t)snprintf(headers, len,"%s\n%s\n%s\n%s\n%s\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);
 
   return ret;
+}
+long findout_filesize(int fd)
+{
+  long size, current_pos;
+
+  current_pos =lseek(fd, 0L, SEEK_CUR); //remember current pos
+  size=lseek(fd, 0L, SEEK_END); // file size
+  lseek(fd,current_pos, SEEK_SET); // return to initial pos
+
+  return size;
+
+}
+
+int convert_content_length(http_response_header_t* header)
+{
+  char num[22];//for 64 bin 2^64(long) has 21 symbols
+  strncpy(header->content_length,"Content-Length: ",16);
+  long_to_str(num,header->content_length_num);
+  strncat(header->content_length, num, 22);
+  return 0;
 }

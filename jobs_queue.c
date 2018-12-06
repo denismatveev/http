@@ -75,7 +75,7 @@ int close_jobs_queue(jobs_queue_t *q)
       WriteLog("Deleting queue which does not exist!");
       return -1;
     }
-  int i;
+  size_t i;
   for(i=q->low_bound; i < q->high_bound; i++)
     {
       destroy_job(*(q->array+i));
@@ -124,7 +124,7 @@ int push_job(jobs_queue_t *q, job_t *j)
 }
 int pop_job(jobs_queue_t* q, job_t **j)
 {
-  unsigned int size, i;
+  size_t size, i;
   job_t** ptr;
 
   if(q->low_bound == q->high_bound)
@@ -142,7 +142,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
       pthread_mutex_unlock(q->mtr);
       return 0;
     }
-  else if(q->low_bound = QUEUE_SIZE_RESERVE)
+  else if(q->low_bound == QUEUE_SIZE_RESERVE)
     {
       pthread_mutex_lock(q->mtr);
       size = (q->high_bound) - (q->low_bound);//size of the queue

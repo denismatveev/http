@@ -5,20 +5,17 @@
 #include "common.h"
 #include <pthread.h>
 
-char *cfgFile = NULL;
-char *cfgFilePath="/etc/swd/swd.conf"; // default config file name
-extern jobs_queue_t* input_queue;
-extern jobs_queue_t* output_queue;
+static char *cfgFile = NULL;
+static char *cfgFilePath="/etc/swd/swd.cnf"; // default config file name
 
 int main(int argc, char** argv)
 {
 
+  config_t cfg;
   int sock;
-  int i;
 
   pid_t pid;
-  char c;
-  config_t cfg;
+  int c;
 
   while ((c = getopt (argc, argv, ":c:")) != -1)
     {
@@ -46,8 +43,6 @@ int main(int argc, char** argv)
       WriteLog("Using default config\n");
       default_cfg(&cfg);
     }
-
-
 
   pid=fork();//child process
 
@@ -78,12 +73,16 @@ int main(int argc, char** argv)
   fclose(stderr);
   fclose(stdin);
   fclose(stdout);
-  chdir(cfg.rootdir);
-  input_queue = init_jobs_queue();
-  input_queue = init_jobs_queue();
+
+
+  if((chdir(cfg.rootdir)))
+    {
+      WriteLogPError(cfg.rootdir);
+      return -1;
+    }
+
   sock=create_listener();
   create_ioworker(sock);
-
   close(sock);
 
   return 0;

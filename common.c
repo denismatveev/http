@@ -40,3 +40,8 @@ int int_to_str(char *str, int number)
 {
   return sprintf(str,"%d", number);
 }
+
+long long_to_str(char *str, long number)
+{
+  return sprintf(str,"%lu", number);
+}

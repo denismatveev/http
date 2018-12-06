@@ -1,5 +1,5 @@
-#ifndef _LISTENER_H
-#define _LISTENER_H
+#ifndef LISTENER_H
+#define LISTENER_H
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -10,8 +10,8 @@
 
 
 
-int create_listener();
+int create_listener(void);
 
 
 
-#endif //_LISTENER_H
+#endif //LISTENER_H
