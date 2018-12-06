@@ -8,7 +8,6 @@ int parse_cfg(config_t *cfg, const char* fname)
   FILE *f;
   int r=0;
   char str[256];
-  int err;
   char del='=';
   char end=';';
   uint16_t port;
@@ -16,13 +15,10 @@ int parse_cfg(config_t *cfg, const char* fname)
 
 
   WriteLog("Parsing config file %s", fname);
-  fprintf(stdout,"Parsing config file\n");
 
   if((f=fopen(fname,"r")) == NULL)
     {
-      err=errno;
       WriteLogPError(fname);
-
       return -1;
     }
 

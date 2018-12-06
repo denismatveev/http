@@ -33,12 +33,14 @@ typedef enum http_method
   CONNECT,
   OPTIONS,
   TRACE,
-  PATCH
+  PATCH,
+  BAD_METHOD = -1
 } http_method_t;
 typedef enum http_protocol_version 
 {
   HTTP11 = 0,
-  HTTP2
+  HTTP2,
+  BAD_PROTO = -1
 } http_protocol_version_t;
 
 typedef enum reason_code
@@ -47,12 +49,14 @@ typedef enum reason_code
   Not_found = 404,
   OK = 200,
   Internal_Error = 500,
-  Not_implemented = 501
+  Not_implemented = 501,
+  BAD_REASON = -1
 }http_reason_code_t;
 
 typedef enum content_type
 {
-  html_text = 0
+  html_text = 0,
+  BAD_CONTENT_TYPE = -1
 }http_content_type_t;
 
 typedef struct http_response_header

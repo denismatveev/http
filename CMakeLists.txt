@@ -7,7 +7,6 @@ add_library(http
     common.c
     )
 add_library(swdlib
-    listener.c
     worker.c
     jobs_queue.c
     parse_config.c

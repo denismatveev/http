@@ -38,7 +38,7 @@ int content_type_to_str(char *str, size_t len, http_content_type_t ct)
   size_t content_type_length;
   switch (ct)
     {
-    case 0:
+    case html_text:
       content_type_length=strlen(content_type[0]);
       if(len <= content_type_length)
         return 1;
@@ -60,31 +60,31 @@ int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
 
   switch(rt)
     {
-    case 400:
+    case Bad_Request:
       reason_code_size=strlen(reason_code_name[0]);
       if(len <= reason_code_size)
         return 1;
       strcpy(str, reason_code_name[0]);
       break;
-    case 404:
+    case Not_found:
       reason_code_size=strlen(reason_code_name[1]);
       if(len <= reason_code_size)
         return 1;
       strcpy(str,reason_code_name[1]);
       break;
-    case 200:
+    case OK:
       reason_code_size=strlen(reason_code_name[2]);
       if(len <= reason_code_size)
         return 1;
       strcpy(str,reason_code_name[2]);
       break;
-    case 500:
+    case Internal_Error:
       reason_code_size=strlen(reason_code_name[3]);
       if(len <= reason_code_size)
         return 1;
       strcpy(str,reason_code_name[3]);
       break;
-    case 501:
+    case Not_implemented:
       reason_code_size=strlen(reason_code_name[4]);
       if(len <= reason_code_size)
         return 1;
@@ -139,7 +139,7 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
         {
         case 0:
           // search for request method
-          if((req->method=find_http_method(tok)) == -1)
+          if((req->method=find_http_method(tok)) == BAD_METHOD)
             {
               free(tmp);
               return -1;
@@ -151,7 +151,7 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
           break;
         case 2:
           // search for http protocol
-          if((req->http_proto=find_http_protocol_version(tok)) == -1)
+          if((req->http_proto=find_http_protocol_version(tok)) == BAD_METHOD)
             {
               free(tmp);
               return -2;
@@ -263,7 +263,7 @@ int create_200_reply(http_response_t* res, const http_request_t* req)
 {
   char status_line[128];
   int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, 200)) == -1)
+  if((ret = create_status_line(status_line, 128, req->http_proto, OK)) == -1)
     return -1;
   fill_http_response(res, status_line);
 
@@ -275,7 +275,7 @@ int create_404_reply(http_response_t *res, const http_request_t* req)
 {
   char status_line[128];
   int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, 404)) == -1)
+  if((ret = create_status_line(status_line, 128, req->http_proto, Not_found)) == -1)
     return -1;
   fill_http_response(res, status_line);
 
@@ -286,7 +286,7 @@ int create_500_reply(http_response_t *res, const http_request_t* req)
 {
   char status_line[128];
   int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, 500)) == -1)
+  if((ret = create_status_line(status_line, 128, req->http_proto, Internal_Error)) == -1)
     return -1;
   fill_http_response(res, status_line);
 
@@ -297,7 +297,7 @@ int create_501_reply(http_response_t * res, const http_request_t* req)
 {
   char status_line[128];
   int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, 501)) == -1)
+  if((ret = create_status_line(status_line, 128, req->http_proto, Not_implemented)) == -1)
     return -1;
   fill_http_response(res, status_line);
 
@@ -308,7 +308,7 @@ int create_400_reply(http_response_t *res, const http_request_t* req)
 {
   char status_line[128];
   int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, 400)) == -1)
+  if((ret = create_status_line(status_line, 128, req->http_proto, Bad_Request)) == -1)
     return -1;
   fill_http_response(res, status_line);
 
