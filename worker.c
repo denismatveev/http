@@ -39,20 +39,20 @@ int create_listener()
   // setnonblocking(sockfd);
   if((listen(sockfd, 255)) < 0)
     {
-      WriteLogPError("Can't Listen socket");
+      WriteLogPError("Can't listen to the socket");
       exit(EXIT_FAILURE);
     }
 
   return sockfd;
 }
 
-void create_worker(int sockfd)
+void create_worker()
 {
-  int conn_sock, nfds, epollfd, n;
+  int conn_sock, nfds, epollfd, n, sockfd;
   struct epoll_event ev, events[MAX_EVENTS];
   epollfd = epoll_create1(0);
   ev.events = EPOLLIN;
-  ev.data.fd = sockfd;
+
 
   struct sockaddr_in cli_addr;
   socklen_t clilen;
@@ -63,6 +63,10 @@ void create_worker(int sockfd)
 
   input_queue = init_jobs_queue();
   output_queue = init_jobs_queue();
+
+  sockfd=create_listener();
+
+  ev.data.fd = sockfd;
 
   epollfd = epoll_create1(0);
   if (epollfd == -1)
@@ -139,8 +143,7 @@ int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs
   return 0;
 }
 // int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
-// берем работу из одной очереди, делаем что-то и перекладываем в другую очередь(для ответа)
-
+// take job from one queue(input_queue), do somethibg and put into another(output_queue)
 int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
 {
   job_t *job;
@@ -260,12 +263,11 @@ ssize_t send_data_from_output_queue(jobs_queue_t* output_queue)
 
 int run_workers(int number_threads)
 {
-  // функция создает треды и распределяет работу
+  // func creats thread and distribute jobs among them
   int i;
-  // треды смотрят очередь, просыпаются по сигналу, берут работу и выполняют ее(парсят запрос, ищут файл, готовят ответ, все это
-  // помещают в структуру)
-  // отправлять ответ в клиентский сокет
+  // thread look into queue, wake up by signal(conditional variable), takes job, does job and sends reply into client's socket
 
+  // TODO count CPU usage by thread and give job to least loaded thread
   // pthread_getcpuclockid and clock_gettime to calculate CPU utilization by thread
   // https://stackoverflow.com/questions/18638590/can-i-measure-the-cpu-usage-in-linux-by-thread-into-application
   //  double cpuNow( void ) {
@@ -284,3 +286,4 @@ int run_workers(int number_threads)
     }
   return 0;
 }
+//TODO create function to close all allocated resources(queues, listening sockets) if signal come(i.e.to reload config)

@@ -79,10 +79,7 @@ int main(int argc, char** argv)
       exit(EXIT_FAILURE);
     }
 
-  sock=create_listener();
-  create_worker(sock);
-  close(sock);
-
-  return 0;
+//TODO signal handler
+  create_worker();
 }
 
