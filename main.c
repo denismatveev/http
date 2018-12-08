@@ -9,7 +9,6 @@ static char *cfgFilePath="/etc/swd/swd.cnf"; // default config file name
 config_t cfg;
 int main(int argc, char** argv)
 {
-  int sock;
 
   pid_t pid;
   int c;

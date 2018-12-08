@@ -48,12 +48,10 @@ int create_listener()
 
 void create_worker()
 {
-  int conn_sock, nfds, epollfd, n, sockfd;
+  int conn_sock, nfds, epollfd, n, sockfd, err;
   struct epoll_event ev, events[MAX_EVENTS];
   epollfd = epoll_create1(0);
-  ev.events = EPOLLIN;
-
-
+  ev.events = EPOLLIN;// level triggered
   struct sockaddr_in cli_addr;
   socklen_t clilen;
   pthread_cond_t condition;
@@ -87,12 +85,18 @@ void create_worker()
       nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
       if (nfds == -1)
         {
-          WriteLogPError("epoll_wait");
-          exit(EXIT_FAILURE);
+          err=errno;
+          if(err ==EINTR)
+            continue;
+          else
+            {
+              WriteLogPError("epoll_wait");
+              exit(EXIT_FAILURE);
+            }
         }
 
       for (n = 0; n < nfds; ++n)
-        { //event on listening socket
+        { // event on listening socket
           if (events[n].data.fd == sockfd)
             {
               conn_sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
@@ -101,8 +105,10 @@ void create_worker()
                   WriteLogPError("accept");
                   exit(EXIT_FAILURE);
                 }
-              //setnonblocking(conn_sock);//if set non-blocking mode we need to use edge-triggered epoll mode and check EAGAIN in while loop to get all incoming data. it is asynchronous mode
-              ev.events = EPOLLIN | EPOLLPRI;
+              // setnonblocking(conn_sock); // must be used in edge-triggered(ET) mode
+
+              // ev.events = EPOLLIN | EPOLLET; // ET mode
+              ev.events = EPOLLIN;
               ev.data.fd = conn_sock;
               if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,&ev) == -1)
                 {
@@ -118,6 +124,7 @@ void create_worker()
               process_jobs(input_queue, output_queue);
               send_data_from_output_queue(output_queue);
               shutdown(events[n].data.fd, SHUT_RD); //shutdown is needed only if got a request for disconnecting
+
             }
         }
     }
@@ -132,12 +139,13 @@ int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs
     return -1;
 
   job->raw_data->client_socket=client_sock; //  copy fd to raw data structure
-  bytes_read=read(job->raw_data->client_socket, job->raw_data->initial_data, INITIAL_DATA_SIZE); // reading data fron socket to structure
+  bytes_read=read(job->raw_data->client_socket, job->raw_data->initial_data, INITIAL_DATA_SIZE); // reading data from the socket to structure
   job->raw_data->initial_data[bytes_read+1] = 0;//adds 0 to the end of data
 
   if(push_job(input_jobs_queue, job))
     {
       WriteLog("Error occured while pushing a job into jobs queue\n");
+      destroy_job(job);
       return -1;
     }
   return 0;
@@ -149,7 +157,7 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
   job_t *job;
   int err;
   int ret;
-  int fd;// file desctiptor of opened file to be sent
+  int fd; // file desctiptor of opened file to be sent
 
   if(pop_job(input, &job))
     {
@@ -158,11 +166,9 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
 
     }
   // parsing raw client data and create a http_request
-
   ret=create_http_request_from_raw_data(job->req, job->raw_data);
-
   // depending on what data are in http_request we are making a reply
-
+  // TODO implement HEAD request
   if(ret < 0 )
     {
       // bad request
@@ -171,60 +177,75 @@ int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
       job->response->message_body=fd;
       job->response->header.content_length_num=findout_filesize(fd);
       convert_content_length(&job->response->header);
+      goto PUSH;
 
     }
-  else
-    if(job->req->http_proto != HTTP11 || job->req->method != GET)
-      {
-        // not implemented
-        create_501_reply(job->response, job->req);
-        fd=open("error_pages/501.html",O_RDONLY );
-        job->response->message_body=fd;
-        job->response->header.content_length_num=findout_filesize(fd);
-        convert_content_length(&job->response->header);
-      }
+  if(job->req->http_proto != HTTP11)
+    {
+      // not implemented
+      create_501_reply(job->response, job->req);
+
+      fd=open("error_pages/501.html",O_RDONLY );
+      job->response->message_body=fd;
+      job->response->header.content_length_num=findout_filesize(fd);
+      convert_content_length(&job->response->header);
+      goto PUSH;
+    }
 
   // finding a file and creating a reply
-    else
-      {
-        fd = open(job->req->params,O_RDONLY);
+  if(job->req->method == GET)
+    {
+      fd = open(job->req->params,O_RDONLY);
+      if(fd > 0)
+        {
+          //everything is OK
+          create_200_reply(job->response, job->req);
+          job->response->message_body=fd;
+          job->response->header.content_length_num=findout_filesize(fd);
+          convert_content_length(&job->response->header);
+          goto PUSH;
+        }
+      else if(fd < 0)
+        {
+          //something went wrong
+          err = errno;
+          WriteLogPError(job->req->params);
+          if(err == EACCES || err == ENOENT)
+            {
+              //no such file
+              create_404_reply(job->response, job->req);
+              fd=open("error_pages/404.html",O_RDONLY );
+              job->response->message_body=fd;
+              job->response->header.content_length_num=findout_filesize(fd);
+              convert_content_length(&job->response->header);
+              goto PUSH;
 
-        if(fd > 0)
-          {
-            //everything is OK
-            create_200_reply(job->response, job->req);
-            job->response->message_body=fd;
-            job->response->header.content_length_num=findout_filesize(fd);
-            convert_content_length(&job->response->header);
-          }
-        else if(fd < 0)
-          {
-            //something went wrong
-            err = errno;
-            if(err == EACCES)
-              {
-                //no such file
-                create_404_reply(job->response, job->req);
-                fd=open("error_pages/404.html",O_RDONLY );
-                job->response->message_body=fd;
-                job->response->header.content_length_num=findout_filesize(fd);
-                convert_content_length(&job->response->header);
+            }
+          else if(err == ENFILE || err == ELOOP)
+            {
+              //specific errors
+              create_500_reply(job->response, job->req);
+              fd=open("error_pages/500.html",O_RDONLY );
+              job->response->message_body=fd;
+              job->response->header.content_length_num=findout_filesize(fd);
+              convert_content_length(&job->response->header);
+              goto PUSH;
+            }
+        }
+    }
+  else
+    {
+      // not implemented
+      create_501_reply(job->response, job->req);
+      fd=open("error_pages/501.html",O_RDONLY );
+      job->response->message_body=fd;
+      job->response->header.content_length_num=findout_filesize(fd);
+      convert_content_length(&job->response->header);
+      goto PUSH;
+    }
 
-              }
-            else if(err == ENFILE || err == ELOOP)
-              {
-                //specific errors
-                create_500_reply(job->response, job->req);
-                fd=open("error_pages/500.html",O_RDONLY );
-                job->response->message_body=fd;
-                job->response->header.content_length_num=findout_filesize(fd);
-                convert_content_length(&job->response->header);
-              }
-          }
-      }
-
+PUSH:
   //  pushing the job into output queue
-
   if(push_job(output, job))
     {
       WriteLog("Error occured while pushing a job into jobs queue\n");
@@ -238,24 +259,24 @@ ssize_t send_data_from_output_queue(jobs_queue_t* output_queue)
 {
 
   job_t* job;
-  char serialized_headers[512];
+  char serialized_headers[512]={0};
   size_t headers_len;
-  ssize_t sent_bytes;
+  ssize_t sent_bytes=0;
 
   pop_job(output_queue, &job);
-
   // create serialized http header
-  headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 128);
-
+  headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 512);
   // sending an answer
   // At first we need to send headers and then file
   sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
   sent_bytes += sendfile(job->raw_data->client_socket,job->response->message_body, NULL, (size_t)job->response->header.content_length_num);
 
   // deleting all allocated resources
-
   close(job->response->message_body);
+  // close client socket
+  close(job->raw_data->client_socket);
   destroy_job(job);
+
 
   return sent_bytes;
 }
@@ -263,7 +284,7 @@ ssize_t send_data_from_output_queue(jobs_queue_t* output_queue)
 
 int run_workers(int number_threads)
 {
-  // func creats thread and distribute jobs among them
+  // func creates thread and distribute jobs among them
   int i;
   // thread look into queue, wake up by signal(conditional variable), takes job, does job and sends reply into client's socket
 
