@@ -1,7 +1,7 @@
 #include "parse_config.h"
 #include "http.h"
-#include "string.h"
-#include "stdlib.h"
+#include <string.h>
+#include <stdlib.h>
 
 int parse_cfg(config_t *cfg, const char* fname)
 {

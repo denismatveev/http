@@ -2,11 +2,19 @@
 #include "common.h"
 #include "http.h"
 #include "parse_config.h"
-#include "pthread.h"
-#include "stdlib.h"
+#include <pthread.h>
+#include <stdlib.h>
 #include "jobs_queue.h"
 #include <errno.h>
 #include <sys/sendfile.h>
+
+// shared variables between threads
+pthread_cond_t output_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t input_cond = PTHREAD_COND_INITIALIZER;
+jobs_queue_t* input_queue;
+jobs_queue_t* output_queue;
+
+
 
 int create_listener()
 {
@@ -54,17 +62,17 @@ void create_worker()
   ev.events = EPOLLIN;// level triggered
   struct sockaddr_in cli_addr;
   socklen_t clilen;
-  pthread_cond_t condition;
 
-  jobs_queue_t* input_queue;
-  jobs_queue_t* output_queue;
-
-  input_queue = init_jobs_queue();
-  output_queue = init_jobs_queue();
-
+  //+++++++++++++++++++++++++++
   sockfd=create_listener();
 
+  // queues initializing
+  input_queue = init_jobs_queue();
+  output_queue = init_jobs_queue();
+  run_threads();
+
   ev.data.fd = sockfd;
+
 
   epollfd = epoll_create1(0);
   if (epollfd == -1)
@@ -120,21 +128,22 @@ void create_worker()
             {
               // event on accepted socket
               // create job and place into input queue
-              create_job_with_raw_data_and_place_into_input_queue(input_queue, events[n].data.fd);
-              process_jobs(input_queue, output_queue);
-              send_data_from_output_queue(output_queue);
-              shutdown(events[n].data.fd, SHUT_RD); //shutdown is needed only if got a request for disconnecting
+              create_job_with_raw_data_and_place_into_input_queue(events[n].data.fd);
+              // number of threads are doing work
+              // process_jobs(input_queue, output_queue);
+              // one thread to send data
+              // send_data_from_output_queue(output_queue);
 
             }
         }
     }
 }
 
-int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs_queue, int client_sock)
+int create_job_with_raw_data_and_place_into_input_queue(int client_sock)
 {
   job_t *job;
   ssize_t bytes_read;
-
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
   if((job = create_job()) == NULL)
     return -1;
 
@@ -142,169 +151,204 @@ int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t* input_jobs
   bytes_read=read(job->raw_data->client_socket, job->raw_data->initial_data, INITIAL_DATA_SIZE); // reading data from the socket to structure
   job->raw_data->initial_data[bytes_read+1] = 0;//adds 0 to the end of data
 
-  if(push_job(input_jobs_queue, job))
+  if(push_job(input_queue, job))
     {
       WriteLog("Error occured while pushing a job into jobs queue\n");
       destroy_job(job);
       return -1;
     }
+  // pthread_cond_broadcast or pthread_cond_signal?
+
+  pthread_mutex_lock(&mutex);
+  pthread_cond_broadcast(&input_cond); // new job appeared in input queue, sending a signal to wake up all threads
+  pthread_mutex_unlock(&mutex);
+
   return 0;
 }
-// int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+
 // take job from one queue(input_queue), do somethibg and put into another(output_queue)
-int process_jobs(jobs_queue_t* input, jobs_queue_t* output)
+void* process_jobs(void *args)
 {
+  //  struct sending_thread_args *targs = args;
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+  // pthread_mutex_init(&mutex, NULL);
   job_t *job;
   int err;
   int ret;
-  int fd; // file desctiptor of opened file to be sent
+  int fd; // file descriptor of opened file to be sent
 
-  if(pop_job(input, &job))
+  while(1)
     {
-      WriteLog("Error occured while popping up a job from jobs queue\n");
-      return -1;
-
-    }
-  // parsing raw client data and create a http_request
-  ret=create_http_request_from_raw_data(job->req, job->raw_data);
-  // depending on what data are in http_request we are making a reply
-  // TODO implement HEAD request
-  if(ret < 0 )
-    {
-      // bad request
-      create_400_reply(job->response, job->req);
-      fd=open("error_pages/400.html",O_RDONLY );
-      job->response->message_body=fd;
-      job->response->header.content_length_num=findout_filesize(fd);
-      convert_content_length(&job->response->header);
-      goto PUSH;
-
-    }
-  if(job->req->http_proto != HTTP11)
-    {
-      // not implemented
-      create_501_reply(job->response, job->req);
-
-      fd=open("error_pages/501.html",O_RDONLY );
-      job->response->message_body=fd;
-      job->response->header.content_length_num=findout_filesize(fd);
-      convert_content_length(&job->response->header);
-      goto PUSH;
-    }
-
-  // finding a file and creating a reply
-  if(job->req->method == GET)
-    {
-      fd = open(job->req->params,O_RDONLY);
-      if(fd > 0)
+      pthread_mutex_lock(&mutex);
+      pthread_cond_wait(&input_cond,&mutex);
+      pthread_mutex_unlock(&mutex);
+      if(pop_job(input_queue, &job))
         {
-          //everything is OK
-          create_200_reply(job->response, job->req);
+          WriteLog("Error occured while popping up a job from jobs queue\n");
+          // return -1;
+          break;
+        }
+
+      // parsing raw client data and create a http_request
+      ret=create_http_request_from_raw_data(job->req, job->raw_data);
+      // depending on what data are in http_request we are making a reply
+      // TODO implement HEAD request
+      if(ret < 0 )
+        {
+          // bad request
+          create_400_reply(job->response, job->req);
+          fd=open("error_pages/400.html",O_RDONLY );
+          job->response->message_body=fd;
+          job->response->header.content_length_num=findout_filesize(fd);
+          convert_content_length(&job->response->header);
+          goto PUSH;
+
+        }
+      if(job->req->http_proto != HTTP11)
+        {
+          // not implemented
+          create_501_reply(job->response, job->req);
+
+          fd=open("error_pages/501.html",O_RDONLY );
           job->response->message_body=fd;
           job->response->header.content_length_num=findout_filesize(fd);
           convert_content_length(&job->response->header);
           goto PUSH;
         }
-      else if(fd < 0)
-        {
-          //something went wrong
-          err = errno;
-          WriteLogPError(job->req->params);
-          if(err == EACCES || err == ENOENT)
-            {
-              //no such file
-              create_404_reply(job->response, job->req);
-              fd=open("error_pages/404.html",O_RDONLY );
-              job->response->message_body=fd;
-              job->response->header.content_length_num=findout_filesize(fd);
-              convert_content_length(&job->response->header);
-              goto PUSH;
 
-            }
-          else if(err == ENFILE || err == ELOOP)
+      // finding a file and creating a reply
+      if(job->req->method == GET)
+        {
+          fd = open(job->req->params,O_RDONLY);
+          if(fd > 0)
             {
-              //specific errors
-              create_500_reply(job->response, job->req);
-              fd=open("error_pages/500.html",O_RDONLY );
+              //everything is OK
+              create_200_reply(job->response, job->req);
               job->response->message_body=fd;
               job->response->header.content_length_num=findout_filesize(fd);
               convert_content_length(&job->response->header);
               goto PUSH;
+            }
+          else if(fd < 0)
+            {
+              //something went wrong
+              err = errno;
+              if(err == EACCES || err == ENOENT)
+                {
+                  //no such file
+                  create_404_reply(job->response, job->req);
+                  fd=open("error_pages/404.html",O_RDONLY );
+                  job->response->message_body=fd;
+                  job->response->header.content_length_num=findout_filesize(fd);
+                  convert_content_length(&job->response->header);
+                  goto PUSH;
+
+                }
+              else if(err == ENFILE || err == ELOOP)
+                {
+                  //specific errors
+                  create_500_reply(job->response, job->req);
+                  fd=open("error_pages/500.html",O_RDONLY );
+                  job->response->message_body=fd;
+                  job->response->header.content_length_num=findout_filesize(fd);
+                  convert_content_length(&job->response->header);
+                  goto PUSH;
+                }
             }
         }
-    }
-  else
-    {
-      // not implemented
-      create_501_reply(job->response, job->req);
-      fd=open("error_pages/501.html",O_RDONLY );
-      job->response->message_body=fd;
-      job->response->header.content_length_num=findout_filesize(fd);
-      convert_content_length(&job->response->header);
-      goto PUSH;
-    }
+      else
+        {
+          // not implemented
+          create_501_reply(job->response, job->req);
+          fd=open("error_pages/501.html",O_RDONLY );
+          job->response->message_body=fd;
+          job->response->header.content_length_num=findout_filesize(fd);
+          convert_content_length(&job->response->header);
+          goto PUSH;
+        }
 
 PUSH:
-  //  pushing the job into output queue
-  if(push_job(output, job))
-    {
-      WriteLog("Error occured while pushing a job into jobs queue\n");
-      return -1;
+      // pushing the job into output queue
+      if(push_job(output_queue, job))
+        {
+          WriteLog("Error occured while pushing a job into jobs queue\n");
+          //return -1;
+          break;
+        }
+      pthread_mutex_lock(&mutex);
+      pthread_cond_signal(&output_cond); // data placed in output queue
+      pthread_mutex_unlock(&mutex);
     }
-  return 0;
 }
-
-
-ssize_t send_data_from_output_queue(jobs_queue_t* output_queue)
+void* send_data_from_output_queue(void* args)
 {
 
+  struct sending_thread_args *targs = args;
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
   job_t* job;
   char serialized_headers[512]={0};
   size_t headers_len;
   ssize_t sent_bytes=0;
 
-  pop_job(output_queue, &job);
-  // create serialized http header
-  headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 512);
-  // sending an answer
-  // At first we need to send headers and then file
-  sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
-  sent_bytes += sendfile(job->raw_data->client_socket,job->response->message_body, NULL, (size_t)job->response->header.content_length_num);
+  while(1)
+    {
+      pthread_mutex_lock(&mutex);// mutex here is needed to protect conditional variable
+      pthread_cond_wait(&output_cond, &mutex);
+      pthread_mutex_unlock(&mutex);
 
-  // deleting all allocated resources
-  close(job->response->message_body);
-  // close client socket
-  close(job->raw_data->client_socket);
-  destroy_job(job);
+      pop_job(output_queue, &job);
 
+      // create serialized http header
+      headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 512);
+      // sending an answer
+      // At first we need to send headers and then file
+      sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
+      sent_bytes += sendfile(job->raw_data->client_socket, job->response->message_body, NULL, (size_t)job->response->header.content_length_num);
 
-  return sent_bytes;
+      // deleting all allocated resources
+      close(job->response->message_body);
+      // close client socket
+      close(job->raw_data->client_socket);
+      destroy_job(job);
+    }
 }
 
+//TODO create function to close all allocated resources(queues, listening sockets) if signal came(i.e.to reload config)
 
-int run_workers(int number_threads)
+
+int run_threads()
 {
-  // func creates thread and distribute jobs among them
-  int i;
-  // thread look into queue, wake up by signal(conditional variable), takes job, does job and sends reply into client's socket
+  int rc;
+  pthread_t worker;
+  pthread_t sender;
 
-  // TODO count CPU usage by thread and give job to least loaded thread
-  // pthread_getcpuclockid and clock_gettime to calculate CPU utilization by thread
-  // https://stackoverflow.com/questions/18638590/can-i-measure-the-cpu-usage-in-linux-by-thread-into-application
-  //  double cpuNow( void ) {
-  //      struct timespec ts;
-  //      clockid_t cid;
+  pthread_attr_t worker_attr;
+  pthread_attr_t sender_attr;
 
-  //      pthread_getcpuclockid(pthread_self(), &cid);
-  //      clock_gettime(cid, &ts);
-  //      return ts.tv_sec + (((double)ts.tv_nsec)*0.000000001);
-  //  }
+  if((rc=pthread_attr_init(&worker_attr)))
+    return rc;
 
-  for(i = 0;i < number_threads; i++)
+  if((rc=pthread_attr_setdetachstate(&worker_attr, PTHREAD_CREATE_DETACHED)))
+    return rc;
+
+  if((rc=pthread_attr_init(&sender_attr)))
+    return rc;
+  if((rc=pthread_attr_setdetachstate(&sender_attr, PTHREAD_CREATE_DETACHED)))
+    return rc;
+
+  if((rc=pthread_create(&worker, &worker_attr, process_jobs, NULL)))
     {
-      //pthread_create();
+      WriteLogPError("processing thread pthread_create");
+      pthread_attr_destroy(&worker_attr);
+      return rc;
+    }
 
+  if((rc=pthread_create(&sender, &sender_attr, send_data_from_output_queue, NULL)))
+    {
+      WriteLogPError("sending thread pthread_create");
+      pthread_attr_destroy(&sender_attr);
+      return rc;
     }
   return 0;
 }
-//TODO create function to close all allocated resources(queues, listening sockets) if signal come(i.e.to reload config)

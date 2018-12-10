@@ -56,12 +56,6 @@ jobs_queue_t* init_jobs_queue()
       WriteLogPError("init_jobs_queue()");
       return NULL;
     }
-  if((pthread_mutex_init(q->mtr, NULL)) != 0)
-    {
-      WriteLogPError("pthread_mutex_init()");
-      return NULL;
-    }
-
   q->high_bound=q->low_bound = 0;
   q->array_size = QUEUE_SIZE_RESERVE;
 
@@ -84,7 +78,6 @@ int close_jobs_queue(jobs_queue_t *q)
   q->low_bound=q->high_bound = 0;
   q->array_size = 0;
   free(q->array);
-  pthread_mutex_destroy(q->mtr);
   free(q);
 
   return 0;
@@ -92,20 +85,19 @@ int close_jobs_queue(jobs_queue_t *q)
 
 int push_job(jobs_queue_t *q, job_t *j)
 {
-
+    pthread_mutex_t mtr = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_lock(&mtr);
   job_t **ptr;
 
   if(q->high_bound < q->array_size)
     {
-      pthread_mutex_lock(q->mtr);
+
       q->array[(q->high_bound)++]=j;
-      pthread_mutex_unlock(q->mtr);
 
       return 0;
     }
   else if(q->high_bound == q->array_size) //queue is full
     {
-      pthread_mutex_lock(q->mtr);
       ptr=(job_t**)realloc(q->array,(q->array_size)*sizeof(job_t*) + QUEUE_SIZE_RESERVE*sizeof(job_t*));
 
       if(ptr == NULL)
@@ -116,35 +108,34 @@ int push_job(jobs_queue_t *q, job_t *j)
       q->array = ptr;
       q->array[(q->high_bound)++]=j;
       q->array_size += QUEUE_SIZE_RESERVE;
-      pthread_mutex_unlock(q->mtr);
+
 
       return 0;
     }
+  pthread_mutex_unlock(&mtr);
   return 1;
 }
 int pop_job(jobs_queue_t* q, job_t **j)
 {
+  pthread_mutex_t mtr = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_lock(&mtr);
   size_t size, i;
   job_t** ptr;
 
   if(q->low_bound == q->high_bound)
     {
-      pthread_mutex_lock(q->mtr);
+
       q->low_bound = q->high_bound = 0;
       *j = NULL;
-      pthread_mutex_unlock(q->mtr);
       return 3;//queue is empty
     }
   else if(q->low_bound < QUEUE_SIZE_RESERVE)
     {
-      pthread_mutex_lock(q->mtr);
       *j = q->array[(q->low_bound)++];
-      pthread_mutex_unlock(q->mtr);
       return 0;
     }
   else if(q->low_bound == QUEUE_SIZE_RESERVE)
     {
-      pthread_mutex_lock(q->mtr);
       size = (q->high_bound) - (q->low_bound);//size of the queue
       //moving all data to zero level and reset the low_bound to null
       for(i=0; i < size; i++)
@@ -162,11 +153,10 @@ int pop_job(jobs_queue_t* q, job_t **j)
           q->array_size=QUEUE_SIZE_RESERVE;
         }
       q->high_bound=size;//set high_bound to size
-
       *j = q->array[(q->low_bound)++];
-      pthread_mutex_unlock(q->mtr);
       return 0;
     }
+  pthread_mutex_unlock(&mtr);
 
   return 1;
 

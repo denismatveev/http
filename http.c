@@ -1,4 +1,4 @@
-#include"http.h"
+#include "http.h"
 #include <locale.h>
 #include <time.h>
 #define MAX_EVENTS 10
@@ -10,7 +10,7 @@
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
 /* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
-char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented", NULL};
+char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
 char* content_type[] = {"Content-Type: html/text"};
 http_method_t find_http_method(const char *sval)
 {
@@ -50,6 +50,33 @@ int content_type_to_str(char *str, size_t len, http_content_type_t ct)
   return 0;
 }
 
+int http_ptorocol_code_to_str(char *str, size_t len, http_protocol_version_t rt)
+{
+  size_t protocol_size;
+  switch(rt)
+    {
+    case HTTP11:
+      protocol_size=strlen(http_protocol_version[0]);
+      if(len <= protocol_size)
+        return 1;
+      strcpy(str, http_protocol_version[0]);
+      break;
+
+    case HTTP2:
+      protocol_size=strlen(http_protocol_version[1]);
+      if(len <= protocol_size)
+        return 1;
+      strcpy(str, http_protocol_version[1]);
+      break;
+    default:
+      protocol_size=strlen(http_protocol_version[0]);
+      if(len <= protocol_size)
+        return 1;
+      strcpy(str, http_protocol_version[0]);
+      break;
+    }
+  return 0;
+}
 
 // convert reason code into value, ie 404 -> Not Found
 
@@ -108,13 +135,12 @@ int create_status_line(char* str, size_t len, http_protocol_version_t p, http_re
 
   // convert int code into name of reason, ie. 501 -> "Not Implemented\0"
   if((reason_code_to_str(reason_str, 64, r)))
-      return -2;
+    return -2;
 
   //check if str len has enough size to write
-  if((strlen(http_protocol_version[p]) +strlen(reason_str) + strlen(reason_code_str))  + 3 > len )
+  http_ptorocol_code_to_str(str,len,p);
+  if((strlen(reason_str) + strlen(reason_code_str))  + 3 > len )
     return -3;
-
-  strcat(str, http_protocol_version[p]); // writing HTTP protocol to status line
   strcat(str," ");// adding space separator
   strcat(str, reason_code_str); //  writing code reason
   strcat(str," "); // adding space
@@ -252,11 +278,9 @@ void fill_http_response(http_response_t *resp, const char* status_line)
   create_date_header(date, 128);
   create_header_name_of_server(server, 128);
   strcpy(resp->header.status_line, status_line);
-
-
   strcpy(resp->header.content_length,"Content-Length=0");// filling this header placed in futher in convert_content_length()
   strcpy(resp->header.content_type, "Content-Type: text/html"); //TODO make depending on content
-  strncpy(resp->header.server,server, strlen(server));
+  strncpy(resp->header.server, server, strlen(server)+1);
   strncpy(resp->header.date, date, strlen(date));
   resp->message_body=0;//must be file descriptor, initially equal zero
 

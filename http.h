@@ -76,7 +76,7 @@ int create_status_line(char*, size_t, http_protocol_version_t, http_reason_code_
 http_response_t* create_http_response(void);
 void fill_http_response(http_response_t *resp, const char* status_line);
 void delete_http_response(http_response_t*);
-
+int http_ptorocol_code_to_str(char *str, size_t len, http_protocol_version_t rt);
 int reason_code_to_str(char *, size_t, http_reason_code_t);
 //see https://rfc2.ru/2068.rfc/30#p6
 //Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF

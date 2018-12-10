@@ -10,15 +10,32 @@
 #include <string.h>
 #include <stdlib.h>
 #define MAX_EVENTS 10
+
+extern jobs_queue_t* input_queue;
+extern jobs_queue_t* output_queue;
+extern pthread_cond_t output_cond;
+extern pthread_cond_t input_cond;
+
+struct processing_threads_info {    /* Used as argument to thread_start() */
+  pthread_t thread_id;        /* ID returned by pthread_create() */
+  int       thread_num;       /* Application-defined thread # */
+};
+
+typedef struct sending_thread_args
+{
+  pthread_mutex_t mutex;
+} sending_thread_args_t;
+
+typedef struct processing_thread_args
+{
+  pthread_mutex_t mutex;
+} processing_thread_args_t;
 int create_listener(void);
 void create_worker(void) __attribute__ ((noreturn)) ;
 
-int create_job_with_raw_data_and_place_into_input_queue(jobs_queue_t*, int);
-int process_jobs(jobs_queue_t* input, jobs_queue_t* output);
-ssize_t send_data_from_output_queue(jobs_queue_t* output_queue);
-int run_workers(int number_threads);
+int create_job_with_raw_data_and_place_into_input_queue(int);
+void* process_jobs(void*);
+void *send_data_from_output_queue(void*);
 
-//extern jobs_queue_t* input_queue;
-//extern jobs_queue_t* output_queue;
-
+int run_threads(void);
 #endif //IOWORKER_H

@@ -17,7 +17,6 @@ typedef job job_t;
 
 typedef struct __jobs_queue
 {
-  pthread_mutex_t *mtr;
   job_t **array;
   size_t array_size;
   size_t high_bound;
