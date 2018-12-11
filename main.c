@@ -40,35 +40,35 @@ int main(int argc, char** argv)
       default_cfg(&cfg);
     }
 
-//    pid=fork();//child process
+    pid=fork();//child process
 
-//    if(pid == -1)
-//      {
-//        WriteLogPError("Error starting daemon");
-//        exit(EXIT_FAILURE);
-//      }
-//    if(pid)
-//      {
-//        WriteLog("Started OK, My PID = %i", pid);
-//        exit(EXIT_SUCCESS);
-//      }
-//    /* the following code is executing in child process */
-//    if((setsid()) < 0)
-//      {
-//        WriteLog("An Error occured. Stop");
-//        exit(EXIT_FAILURE);
-//      }
-//    umask(0);
+    if(pid == -1)
+      {
+        WriteLogPError("Error starting daemon");
+        exit(EXIT_FAILURE);
+      }
+    if(pid)
+      {
+        WriteLog("Started OK, My PID = %i", pid);
+        exit(EXIT_SUCCESS);
+      }
+    /* the following code is executing in child process */
+    if((setsid()) < 0)
+      {
+        WriteLog("An Error occured. Stop");
+        exit(EXIT_FAILURE);
+      }
+    umask(0);
 
-//    if((chdir("/")) < 0)
-//      {
-//        WriteLog("Can't change directory");
-//        exit(EXIT_FAILURE);
-//      }
+    if((chdir("/")) < 0)
+      {
+        WriteLog("Can't change directory");
+        exit(EXIT_FAILURE);
+      }
 
-//    fclose(stderr);
-//    fclose(stdin);
-//    fclose(stdout);
+    fclose(stderr);
+    fclose(stdin);
+    fclose(stdout);
 
 
   if((chdir(cfg.rootdir)))
@@ -78,7 +78,7 @@ int main(int argc, char** argv)
       exit(EXIT_FAILURE);
     }
 
-  //TODO signal handler
+  //TODO signal handler(SIGPIPE, SIGUSR1 etc)
   create_worker();
 
 }

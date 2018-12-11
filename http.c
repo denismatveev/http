@@ -19,7 +19,7 @@ http_method_t find_http_method(const char *sval)
   for (i = 0; http_method[i] != NULL; ++i, ++result)
     if (!(strncmp(sval, http_method[i], 16)))
       return result;
-  return -1;
+  return INVALID_METHOD;
 }
 http_protocol_version_t find_http_protocol_version(const char *sval)
 {
@@ -28,7 +28,7 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
   for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
     if (!(strncmp(sval, http_protocol_version[i], 16)))
       return result;
-  return -1;
+  return INVALID_PROTO;
 }
 
 // convert content_type into string
@@ -44,8 +44,6 @@ int content_type_to_str(char *str, size_t len, http_content_type_t ct)
         return 1;
       strcpy(str,content_type[0]);
       break;
-    default:
-      return -1;
     }
   return 0;
 }
@@ -67,12 +65,6 @@ int http_ptorocol_code_to_str(char *str, size_t len, http_protocol_version_t rt)
       if(len <= protocol_size)
         return 1;
       strcpy(str, http_protocol_version[1]);
-      break;
-    default:
-      protocol_size=strlen(http_protocol_version[0]);
-      if(len <= protocol_size)
-        return 1;
-      strcpy(str, http_protocol_version[0]);
       break;
     }
   return 0;
@@ -117,8 +109,6 @@ int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
         return 5;
       strcpy(str,reason_code_name[4]);
       break;
-    default:
-      return -1;
     }
   return 0;
 }

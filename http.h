@@ -33,12 +33,14 @@ typedef enum http_method
   CONNECT,
   OPTIONS,
   TRACE,
-  PATCH
+  PATCH,
+  INVALID_METHOD = -1
 } http_method_t;
 typedef enum http_protocol_version 
 {
   HTTP11 = 0,
-  HTTP2
+  HTTP2,
+  INVALID_PROTO = -1
 } http_protocol_version_t;
 
 typedef enum reason_code
