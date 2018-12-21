@@ -17,10 +17,12 @@ typedef job job_t;
 
 typedef struct __jobs_queue
 {
+  char queuename[32];
   job_t **array;
-  size_t array_size;
+  size_t capacity;
   size_t high_bound;
   size_t low_bound;
+  size_t size;
 
 } jobs_queue;
 typedef jobs_queue jobs_queue_t;
@@ -30,12 +32,10 @@ typedef jobs_queue jobs_queue_t;
 job_t* create_job(void);
 void destroy_job(job_t*);
 
-jobs_queue_t* init_jobs_queue(void);
+jobs_queue_t* init_jobs_queue(char* queuename);
 int close_jobs_queue(jobs_queue_t*);
 
 int push_job(jobs_queue_t*, job_t *);
 int pop_job(jobs_queue_t*, job_t**);
-
-
 
 #endif

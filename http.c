@@ -9,7 +9,7 @@
 /* array of strings to search symbol name of HTTP method */
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
 /* only two versions supported */
-char *http_protocol_version[] = {"HTTP/1.1", "HTTP/2", NULL};
+char *http_protocol_version[] = {"HTTP/1.0", "HTTP/1.1", "HTTP/2", NULL};
 char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
 char* content_type[] = {"Content-Type: html/text"};
 http_method_t find_http_method(const char *sval)
@@ -23,7 +23,7 @@ http_method_t find_http_method(const char *sval)
 }
 http_protocol_version_t find_http_protocol_version(const char *sval)
 {
-  http_protocol_version_t result = HTTP11; /* value corresponding to etable[0] */
+  http_protocol_version_t result = HTTP10; /* value corresponding to etable[0] */
   int i = 0;
   for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
     if (!(strncmp(sval, http_protocol_version[i], 16)))
@@ -53,19 +53,26 @@ int http_ptorocol_code_to_str(char *str, size_t len, http_protocol_version_t rt)
   size_t protocol_size;
   switch(rt)
     {
+    case HTTP10:
+      protocol_size=strlen(http_protocol_version[0]);
+      if(len <= protocol_size)
+        return 1;
+      strcpy(str, http_protocol_version[0]);
+      break;
     case HTTP11:
       protocol_size=strlen(http_protocol_version[0]);
       if(len <= protocol_size)
         return 1;
       strcpy(str, http_protocol_version[0]);
       break;
-
     case HTTP2:
       protocol_size=strlen(http_protocol_version[1]);
       if(len <= protocol_size)
         return 1;
       strcpy(str, http_protocol_version[1]);
       break;
+    default :
+      return 0;
     }
   return 0;
 }
@@ -203,6 +210,11 @@ http_request_t* create_request()
 
 void delete_http_request(http_request_t* ptr)
 {
+  if(ptr == NULL)
+    {
+      WriteLog("http request cannot be deleted as it doesn't exist");
+      return;
+    }
   free(ptr);
 }
 
@@ -218,6 +230,11 @@ raw_client_data_t* create_raw_data()
 
 void delete_raw_data(raw_client_data_t* rd)
 {
+  if(rd == NULL)
+    {
+      WriteLog("Raw client data cannot be deleted as they don't exist");
+      return;
+    }
   free(rd);
 }
 
@@ -277,6 +294,11 @@ void fill_http_response(http_response_t *resp, const char* status_line)
 }
 void delete_http_response(http_response_t *hp)
 {
+  if(hp == NULL)
+    {
+      WriteLog("http response cannot be deleted as it doesn't exist");
+      return;
+    }
   free(hp);
 }
 
@@ -337,7 +359,7 @@ int create_400_reply(http_response_t *res, const http_request_t* req)
   return 0;
 }
 
-size_t create_serialized_http_header(char* headers, http_response_header_t* rs, size_t len)
+size_t create_serialized_http_header(char* headers, const http_response_header_t *rs, size_t len)
 {
   size_t ret;
   ret=(size_t)snprintf(headers, len,"%s\n%s\n%s\n%s\n%s\r\n\r\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);

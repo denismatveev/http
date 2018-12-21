@@ -38,7 +38,8 @@ typedef enum http_method
 } http_method_t;
 typedef enum http_protocol_version 
 {
-  HTTP11 = 0,
+  HTTP10 = 0,
+  HTTP11,
   HTTP2,
   INVALID_PROTO = -1
 } http_protocol_version_t;
@@ -116,7 +117,7 @@ int create_404_reply(http_response_t*,const http_request_t*);
 int create_501_reply(http_response_t*,const http_request_t*);
 int create_500_reply(http_response_t*,const http_request_t*);
 int create_400_reply(http_response_t*,const http_request_t*);
-size_t create_serialized_http_header(char* serialized, http_response_header_t* rs, size_t size);
+size_t create_serialized_http_header(char* serialized, const http_response_header_t* rs, size_t size);
 int convert_content_length(http_response_header_t* header);
 long findout_filesize(int fd);
 #endif /*_HTTP_H*/

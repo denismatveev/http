@@ -56,19 +56,20 @@ int create_listener()
 
 void create_worker()
 {
-  int conn_sock, nfds, epollfd, n, sockfd, err;
+  int conn_sock, nfds, epollfd, sockfd, err, ret;
   struct epoll_event ev, events[MAX_EVENTS];
   epollfd = epoll_create1(0);
   ev.events = EPOLLIN;// level triggered
   struct sockaddr_in cli_addr;
   socklen_t clilen;
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
   //+++++++++++++++++++++++++++
   sockfd=create_listener();
 
   // queues initializing
-  input_queue = init_jobs_queue();
-  output_queue = init_jobs_queue();
+  input_queue = init_jobs_queue("input");
+  output_queue = init_jobs_queue("output");
   run_threads();
 
   ev.data.fd = sockfd;
@@ -102,9 +103,9 @@ void create_worker()
               exit(EXIT_FAILURE);
             }
         }
-
-      for (n = 0; n < nfds; ++n)
-        { // event on listening socket
+      for (int n = 0; n < nfds; ++n)
+        {
+          // event on listening socket
           if (events[n].data.fd == sockfd)
             {
               conn_sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
@@ -125,25 +126,25 @@ void create_worker()
                 }
             }
           else
-            {
-              // event on accepted socket
-              // create job and place into input queue
-              create_job_with_raw_data_and_place_into_input_queue(events[n].data.fd);
-              // number of threads are doing work
-              // process_jobs(input_queue, output_queue);
-              // one thread to send data
-              // send_data_from_output_queue(output_queue);
-
-            }
+            ret = create_job_with_raw_data_and_place_into_input_queue(events[n].data.fd);
         }
+
+      pthread_mutex_lock(&mutex);
+      if(input_queue->size > 0) //predicate to send a signal
+        pthread_cond_broadcast(&input_cond); // new job appeared in input queue, sending a signal to wake up all threads
+      pthread_mutex_unlock(&mutex);
     }
+
 }
 
 int create_job_with_raw_data_and_place_into_input_queue(int client_sock)
 {
   job_t *job;
   ssize_t bytes_read;
-  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#ifdef DEBUG
+  WriteLog("Creating jobs");
+#endif
   if((job = create_job()) == NULL)
     return -1;
 
@@ -157,16 +158,10 @@ int create_job_with_raw_data_and_place_into_input_queue(int client_sock)
       destroy_job(job);
       return -1;
     }
-  // pthread_cond_broadcast or pthread_cond_signal?
-
-  pthread_mutex_lock(&mutex);
-  pthread_cond_broadcast(&input_cond); // new job appeared in input queue, sending a signal to wake up all threads
-  pthread_mutex_unlock(&mutex);
-
   return 0;
 }
 
-// take job from one queue(input_queue), do somethibg and put into another(output_queue)
+// take job from one queue(input_queue), do something and put into another(output_queue)
 void* process_jobs(void *args)
 {
   //  struct sending_thread_args *targs = args;
@@ -177,18 +172,19 @@ void* process_jobs(void *args)
   int err;
   int ret;
   int fd; // file descriptor of opened file to be sent
-
   while(1)
     {
       pthread_mutex_lock(&mutex);
-      pthread_cond_wait(&input_cond,&mutex);
-      pthread_mutex_unlock(&mutex);
-      if(pop_job(input_queue, &job))
-        {
-          WriteLog("Error occured while popping up a job from jobs queue\n");
-          // return -1;
-          break;
-        }
+
+      while(input_queue->size == 0)
+        pthread_cond_wait(&input_cond,&mutex);
+
+#ifdef DEBUG
+      WriteLog("Processing job from input queue");
+#endif
+
+      if((pop_job(input_queue, &job)))
+        continue;
 
       // parsing raw client data and create a http_request
       ret=create_http_request_from_raw_data(job->req, job->raw_data);
@@ -203,13 +199,11 @@ void* process_jobs(void *args)
           job->response->header.content_length_num=findout_filesize(fd);
           convert_content_length(&job->response->header);
           goto PUSH;
-
         }
       if(job->req->http_proto != HTTP11)
         {
           // not implemented
           create_501_reply(job->response, job->req);
-
           fd=open("error_pages/501.html",O_RDONLY );
           job->response->message_body=fd;
           job->response->header.content_length_num=findout_filesize(fd);
@@ -268,18 +262,24 @@ void* process_jobs(void *args)
           goto PUSH;
         }
 
+
 PUSH:
       // pushing the job into output queue
+      pthread_mutex_unlock(&mutex);
       if(push_job(output_queue, job))
         {
           WriteLog("Error occured while pushing a job into jobs queue\n");
           //return -1;
-          break;
+          continue;
         }
+
       pthread_mutex_lock(&mutex);
-      pthread_cond_signal(&output_cond); // data placed in output queue
+      if(output_queue->size > 0)
+        pthread_cond_signal(&output_cond); // data placed in output queue
       pthread_mutex_unlock(&mutex);
     }
+
+  return NULL;
 }
 void* send_data_from_output_queue(void* args)
 {
@@ -291,13 +291,18 @@ void* send_data_from_output_queue(void* args)
   size_t headers_len;
   ssize_t sent_bytes=0;
 
+
   while(1)
     {
       pthread_mutex_lock(&mutex);// mutex here is needed to protect conditional variable
-      pthread_cond_wait(&output_cond, &mutex);
-      pthread_mutex_unlock(&mutex);
+      while(output_queue->size == 0)
+        pthread_cond_wait(&output_cond, &mutex);
 
-      pop_job(output_queue, &job);
+#ifdef DEBUG
+      WriteLog("Sending jobs");
+#endif
+      if((pop_job(output_queue, &job)))
+        continue;
 
       // create serialized http header
       headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 512);
@@ -311,6 +316,8 @@ void* send_data_from_output_queue(void* args)
       // close client socket
       close(job->raw_data->client_socket);
       destroy_job(job);
+
+      pthread_mutex_unlock(&mutex);
     }
 }
 
