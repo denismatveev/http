@@ -16,9 +16,6 @@ job_t* create_job()
     return NULL;
   if((j->response = create_http_response()) == NULL)
     return NULL;
-//  if((pthread_mutex_init(&j->lock,NULL)))
-//    return NULL;
-
   return j;
 
 }
@@ -33,7 +30,6 @@ void destroy_job(job_t* j)
   delete_raw_data(j->raw_data);
   delete_http_request(j->req);
   delete_http_response(j->response);
-//  pthread_mutex_destroy(&j->lock);
   free(j);
 
 }

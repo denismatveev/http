@@ -8,7 +8,6 @@
 
 typedef struct __job
 {
- // pthread_mutex_t lock;
   http_request_t *req;
   raw_client_data_t *raw_data;
   http_response_t *response;

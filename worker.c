@@ -70,7 +70,6 @@ void create_worker()
   // queues initializing
   input_queue = init_jobs_queue("input");
   output_queue = init_jobs_queue("output");
-  //  run_threads(cfg.workers, cfg.workers);
   run_threads(cfg.workers,cfg.workers);
   ev.data.fd = sockfd;
 
@@ -168,7 +167,6 @@ void* process_jobs(void *args)
   //  struct sending_thread_args *targs = args;
   pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-  // pthread_mutex_init(&mutex, NULL);
   job_t *job;
   int err;
   int ret;
