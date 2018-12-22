@@ -16,6 +16,8 @@ job_t* create_job()
     return NULL;
   if((j->response = create_http_response()) == NULL)
     return NULL;
+//  if((pthread_mutex_init(&j->lock,NULL)))
+//    return NULL;
 
   return j;
 
@@ -31,7 +33,9 @@ void destroy_job(job_t* j)
   delete_raw_data(j->raw_data);
   delete_http_request(j->req);
   delete_http_response(j->response);
+//  pthread_mutex_destroy(&j->lock);
   free(j);
+
 }
 
 
@@ -54,6 +58,9 @@ jobs_queue_t* init_jobs_queue(char *queuename)
   strncpy(q->queuename,queuename, 32);
   q->size=q->high_bound-q->low_bound;
 
+  if((pthread_mutex_init(&q->lock,NULL)))
+    return NULL;
+
   return q;
 
 }
@@ -72,6 +79,7 @@ int close_jobs_queue(jobs_queue_t *q)
 
   q->low_bound=q->high_bound = 0;
   q->capacity = 0;
+  pthread_mutex_destroy(&q->lock);
   free(q->array);
   free(q);
 
@@ -80,19 +88,18 @@ int close_jobs_queue(jobs_queue_t *q)
 
 int push_job(jobs_queue_t *q, job_t *j)
 {
-  pthread_mutex_t mtr = PTHREAD_MUTEX_INITIALIZER;
-  pthread_mutex_lock(&mtr);
+
+  pthread_mutex_lock(&q->lock);
   job_t **ptr;
 
   if(q->high_bound < q->capacity)
     {
-
       q->array[(q->high_bound)++]=j;
 #ifdef QUEUEDEBUG
       WriteLog("Pushed job into queue '%s'", q->queuename);
 #endif
       q->size=q->high_bound-q->low_bound;
-      pthread_mutex_unlock(&mtr);
+      pthread_mutex_unlock(&q->lock);
       return 0;
     }
   else if(q->high_bound == q->capacity) //queue is full
@@ -102,7 +109,7 @@ int push_job(jobs_queue_t *q, job_t *j)
       if(ptr == NULL)
         {
           WriteLogPError("push_job()");
-          pthread_mutex_unlock(&mtr);
+          pthread_mutex_unlock(&q->lock);
           return 2;
         }
       q->array = ptr;
@@ -113,18 +120,17 @@ int push_job(jobs_queue_t *q, job_t *j)
       WriteLog("Pushed job into queue '%s'", q->queuename);
 #endif
       q->size=q->high_bound-q->low_bound;
-      pthread_mutex_unlock(&mtr);
+      pthread_mutex_unlock(&q->lock);
       return 0;
     }
   q->size=q->high_bound-q->low_bound;
-  pthread_mutex_unlock(&mtr);
+  pthread_mutex_unlock(&q->lock);
 
   return 1;
 }
 int pop_job(jobs_queue_t* q, job_t **j)
 {
-  pthread_mutex_t mtr = PTHREAD_MUTEX_INITIALIZER;
-  pthread_mutex_lock(&mtr);
+  pthread_mutex_lock(&q->lock);
   size_t size, i;
   job_t** ptr;
 
@@ -136,7 +142,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
       WriteLog("Queue '%s' is empty", q->queuename);
 #endif
       q->size=q->high_bound-q->low_bound;
-      pthread_mutex_unlock(&mtr);
+      pthread_mutex_unlock(&q->lock);
 
       return 3;//queue is empty
     }
@@ -147,7 +153,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
       WriteLog("Popped from queue '%s'", q->queuename);
 #endif
       q->size=q->high_bound-q->low_bound;
-      pthread_mutex_unlock(&mtr);
+      pthread_mutex_unlock(&q->lock);
       return 0;
     }
   else if(q->low_bound == QUEUE_SIZE_RESERVE)
@@ -163,7 +169,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
           if(ptr == NULL)
             {
               WriteLogPError("pop_job()");
-              pthread_mutex_unlock(&mtr);
+              pthread_mutex_unlock(&q->lock);
               return 2;
             }
           q->array = ptr;
@@ -175,11 +181,11 @@ int pop_job(jobs_queue_t* q, job_t **j)
       WriteLog("Popped from queue '%s'", q->queuename);
 #endif
       q->size=q->high_bound-q->low_bound;
-      pthread_mutex_unlock(&mtr);
+      pthread_mutex_unlock(&q->lock);
       return 0;
     }
 
-  pthread_mutex_unlock(&mtr);
+  pthread_mutex_unlock(&q->lock);
   return 1;
 
 }

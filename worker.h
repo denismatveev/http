@@ -37,5 +37,5 @@ int create_job_with_raw_data_and_place_into_input_queue(int);
 void* process_jobs(void*);
 void *send_data_from_output_queue(void*);
 
-int run_threads(void);
+int run_threads(int nprocessing_threads, int nsender_threads);
 #endif //IOWORKER_H

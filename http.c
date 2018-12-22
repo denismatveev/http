@@ -2,7 +2,7 @@
 #include <locale.h>
 #include <time.h>
 #define MAX_EVENTS 10
-#define servername "My little server"
+#define servername "SmallServer"
 
 /* General */
 

@@ -70,8 +70,8 @@ void create_worker()
   // queues initializing
   input_queue = init_jobs_queue("input");
   output_queue = init_jobs_queue("output");
-  run_threads();
-
+  //  run_threads(cfg.workers, cfg.workers);
+  run_threads(cfg.workers,cfg.workers);
   ev.data.fd = sockfd;
 
 
@@ -108,21 +108,22 @@ void create_worker()
           // event on listening socket
           if (events[n].data.fd == sockfd)
             {
-              conn_sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-              if (conn_sock == -1)
+              if((conn_sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) == -1)
                 {
+                  err=errno;
                   WriteLogPError("accept");
-                  exit(EXIT_FAILURE);
+                  break;
                 }
               // setnonblocking(conn_sock); // must be used in edge-triggered(ET) mode
 
               // ev.events = EPOLLIN | EPOLLET; // ET mode
               ev.events = EPOLLIN;
               ev.data.fd = conn_sock;
-              if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,&ev) == -1)
+              if ((epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,&ev)) == -1)
                 {
-                  WriteLogPError("epoll_ctl: conn_sock");
-                  exit(EXIT_FAILURE);
+                  err=errno;
+                  WriteLogPError("epoll_ctl");
+                  break;
                 }
             }
           else
@@ -200,17 +201,6 @@ void* process_jobs(void *args)
           convert_content_length(&job->response->header);
           goto PUSH;
         }
-      if(job->req->http_proto != HTTP11)
-        {
-          // not implemented
-          create_501_reply(job->response, job->req);
-          fd=open("error_pages/501.html",O_RDONLY );
-          job->response->message_body=fd;
-          job->response->header.content_length_num=findout_filesize(fd);
-          convert_content_length(&job->response->header);
-          goto PUSH;
-        }
-
       // finding a file and creating a reply
       if(job->req->method == GET)
         {
@@ -324,38 +314,53 @@ void* send_data_from_output_queue(void* args)
 //TODO create function to close all allocated resources(queues, listening sockets) if signal came(i.e.to reload config)
 
 
-int run_threads()
+int run_threads(int nprocessing, int nsenders)
 {
   int rc;
-  pthread_t worker;
-  pthread_t sender;
+  pthread_t *workers;
+  pthread_t *senders;
 
   pthread_attr_t worker_attr;
   pthread_attr_t sender_attr;
 
+
+  if((workers=(pthread_t*)calloc(nprocessing,sizeof(pthread_t))) == NULL)
+    return -1;
+
+  if((senders=(pthread_t*)calloc(nsenders,sizeof(pthread_t))) == NULL)
+    return -1;
+
   if((rc=pthread_attr_init(&worker_attr)))
     return rc;
-
   if((rc=pthread_attr_setdetachstate(&worker_attr, PTHREAD_CREATE_DETACHED)))
     return rc;
+  for(int i=0; i < nprocessing; ++i)
+    {
+      if((rc=pthread_create(workers + i, &worker_attr, process_jobs, NULL)))
+        {
+          WriteLogPError("creating processing thread");
+          pthread_attr_destroy(&worker_attr);
+          free(workers);
+
+          return rc;
+        }
+    }
 
   if((rc=pthread_attr_init(&sender_attr)))
     return rc;
   if((rc=pthread_attr_setdetachstate(&sender_attr, PTHREAD_CREATE_DETACHED)))
     return rc;
 
-  if((rc=pthread_create(&worker, &worker_attr, process_jobs, NULL)))
+  for(int i=0; i < nprocessing; ++i)
     {
-      WriteLogPError("processing thread pthread_create");
-      pthread_attr_destroy(&worker_attr);
-      return rc;
-    }
+      if((rc=pthread_create(senders + i, &sender_attr, send_data_from_output_queue, NULL)))
+        {
+          WriteLogPError("creating sending thread");
+          pthread_attr_destroy(&sender_attr);
+          free(senders);
 
-  if((rc=pthread_create(&sender, &sender_attr, send_data_from_output_queue, NULL)))
-    {
-      WriteLogPError("sending thread pthread_create");
-      pthread_attr_destroy(&sender_attr);
-      return rc;
+          return rc;
+        }
     }
   return 0;
 }

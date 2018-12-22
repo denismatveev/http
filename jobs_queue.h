@@ -8,6 +8,7 @@
 
 typedef struct __job
 {
+ // pthread_mutex_t lock;
   http_request_t *req;
   raw_client_data_t *raw_data;
   http_response_t *response;
@@ -17,12 +18,13 @@ typedef job job_t;
 
 typedef struct __jobs_queue
 {
+  pthread_mutex_t lock;
   char queuename[32];
   job_t **array;
-  size_t capacity;
+  size_t capacity; // max number of elements can be placed in queue
   size_t high_bound;
   size_t low_bound;
-  size_t size;
+  size_t size; // current number of elemnts in queue
 
 } jobs_queue;
 typedef jobs_queue jobs_queue_t;
