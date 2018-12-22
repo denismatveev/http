@@ -20,6 +20,8 @@ where</br>
 ```listen``` - is an address to listen to</br>
 ```workers``` is a number of worker threads to process requests and number of sender threads</br>
 
+Directory error_pages must be placed into ```rootdir```.
+
 TODO:
 * implement ```HEAD``` method
 * implement index page searching(specifying index page in conf file)
