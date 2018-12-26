@@ -27,3 +27,5 @@ TODO:
 * implement index page searching(specifying index page in conf file)
 * graceful reload daemon by signal (```kill -SIGUSR1```, for example)
 * create and dedicate HTTP library
+# Working copy 
+Running server is availabe at http://denis.ilmen-tau.ru/index.html
