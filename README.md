@@ -2,6 +2,14 @@
 
 This is my simple implementaion of multithreaded small web daemon. It uses sendfile() syscall, epoll()(but in blocking mode), dynamic queues.
 One queue is used for incoming requests, the second one is for sending replies to client in dedicated thread. Serves only static pages.</br>
+Features:
+* Multithreaded
+* My own dynamic queues implementation
+* To improve performance it implemented with using sendfile(), epoll syscalls
+* My own HTTP protocol parsing implementation
+* Supports jpg, png, pdf, mpeg, html MIMEs. Easy to add new types
+* Serves only static files
+
 Run:
 ```bash
 ./swd -c <path to conf file>
