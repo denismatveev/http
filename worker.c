@@ -171,6 +171,7 @@ void* process_jobs(void *args)
   int err;
   int ret;
   int fd; // file descriptor of opened file to be sent
+  struct stat sb;
   while(1)
     {
       pthread_mutex_lock(&mutex);
@@ -195,21 +196,32 @@ void* process_jobs(void *args)
           create_400_reply(job->response, job->req);
           fd=open("error_pages/400.html",O_RDONLY );
           job->response->message_body=fd;
-          job->response->header.content_length_num=findout_filesize(fd);
-          convert_content_length(&job->response->header);
+          job->response->header.content_length_num=getfilesize(fd);
+          convertContentLength(&job->response->header);
           goto PUSH;
         }
       // finding a file and creating a reply
       if(job->req->method == GET)
         {
-          fd = open(job->req->params,O_RDONLY);
+          fd = open(job->req->params, O_RDONLY);
+          if((checkRegularFile(fd)) != 0)
+          {
+             create_404_reply(job->response, job->req);
+             fd=open("error_pages/404.html",O_RDONLY );
+             job->response->message_body=fd;
+             job->response->header.content_length_num=getfilesize(fd);
+             convertContentLength(&job->response->header);
+             goto PUSH;
+        }
+
           if(fd > 0)
             {
               //everything is OK
               create_200_reply(job->response, job->req);
               job->response->message_body=fd;
-              job->response->header.content_length_num=findout_filesize(fd);
-              convert_content_length(&job->response->header);
+              job->response->header.content_length_num=getfilesize(fd);
+              getFileMIMETypeInStr(job->response->header.content_type, 256, job->req->params);
+              convertContentLength(&job->response->header);
               goto PUSH;
             }
           else if(fd < 0)
@@ -222,8 +234,8 @@ void* process_jobs(void *args)
                   create_404_reply(job->response, job->req);
                   fd=open("error_pages/404.html",O_RDONLY );
                   job->response->message_body=fd;
-                  job->response->header.content_length_num=findout_filesize(fd);
-                  convert_content_length(&job->response->header);
+                  job->response->header.content_length_num=getfilesize(fd);
+                  convertContentLength(&job->response->header);
                   goto PUSH;
 
                 }
@@ -233,8 +245,8 @@ void* process_jobs(void *args)
                   create_500_reply(job->response, job->req);
                   fd=open("error_pages/500.html",O_RDONLY );
                   job->response->message_body=fd;
-                  job->response->header.content_length_num=findout_filesize(fd);
-                  convert_content_length(&job->response->header);
+                  job->response->header.content_length_num=getfilesize(fd);
+                  convertContentLength(&job->response->header);
                   goto PUSH;
                 }
             }
@@ -245,8 +257,8 @@ void* process_jobs(void *args)
           create_501_reply(job->response, job->req);
           fd=open("error_pages/501.html",O_RDONLY );
           job->response->message_body=fd;
-          job->response->header.content_length_num=findout_filesize(fd);
-          convert_content_length(&job->response->header);
+          job->response->header.content_length_num=getfilesize(fd);
+          convertContentLength(&job->response->header);
           goto PUSH;
         }
 

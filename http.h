@@ -21,7 +21,7 @@
 #define PARAMS_STRING_LENGTH 131072
 #define INITIAL_DATA_SIZE 132000 //method+params+proto+hostname
 
-extern char *http_method[], *http_protocol_version[], *reason_code_name[], *content_type[];
+extern char *http_method[], *http_protocol_version[], *reason_code_name[], *content_type[], *file_ext[];
 /* enumeration of all available HTTP methods */
 typedef enum http_method
 {
@@ -55,7 +55,13 @@ typedef enum reason_code
 
 typedef enum content_type
 {
-  html_text = 0
+  text_html = 0,
+  image_jpg,
+  application_pdf,
+  image_png,
+  video_mpeg,
+  text_css,
+  INVALID_MIME = -1
 }http_content_type_t;
 
 typedef struct http_response_header
@@ -118,6 +124,8 @@ int create_501_reply(http_response_t*,const http_request_t*);
 int create_500_reply(http_response_t*,const http_request_t*);
 int create_400_reply(http_response_t*,const http_request_t*);
 size_t create_serialized_http_header(char* serialized, const http_response_header_t* rs, size_t size);
-int convert_content_length(http_response_header_t* header);
-long findout_filesize(int fd);
+int convertContentLength(http_response_header_t* header);
+long getfilesize(int fd);
+http_content_type_t getfileMIMEtype(const char *filename);
+int getFileMIMETypeInStr(char* content_type, size_t len, const char* filename);
 #endif /*_HTTP_H*/

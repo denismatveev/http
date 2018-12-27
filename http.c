@@ -2,16 +2,16 @@
 #include <locale.h>
 #include <time.h>
 #define MAX_EVENTS 10
-#define servername "SmallServer"
+#define servername "SmallWebServer"
 
 /* General */
 
 /* array of strings to search symbol name of HTTP method */
 char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
-/* only two versions supported */
 char *http_protocol_version[] = {"HTTP/1.0", "HTTP/1.1", "HTTP/2", NULL};
 char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
-char* content_type[] = {"Content-Type: html/text"};
+char *content_type[] = {"Content-Type: text/html", "Content-Type: image/jpg", "Content-Type: application/pdf", "Content-Type: image/png", "Content-Type: video/mpeg", "Content-Type: text/css"};
+char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
 http_method_t find_http_method(const char *sval)
 {
   http_method_t result = GET; /* value corresponding to etable[0] */
@@ -38,12 +38,44 @@ int content_type_to_str(char *str, size_t len, http_content_type_t ct)
   size_t content_type_length;
   switch (ct)
     {
-    case html_text:
+    case text_html:
       content_type_length=strlen(content_type[0]);
       if(len <= content_type_length)
         return 1;
       strcpy(str,content_type[0]);
       break;
+    case image_jpg:
+      content_type_length=strlen(content_type[1]);
+      if(len <= content_type_length)
+        return 2;
+      strcpy(str,content_type[1]);
+      break;
+    case application_pdf:
+      content_type_length=strlen(content_type[2]);
+      if(len <= content_type_length)
+        return 3;
+      strcpy(str,content_type[2]);
+      break;
+    case image_png:
+      content_type_length=strlen(content_type[3]);
+      if(len <= content_type_length)
+        return 4;
+      strcpy(str,content_type[3]);
+      break;
+    case video_mpeg:
+      content_type_length=strlen(content_type[4]);
+      if(len <= content_type_length)
+        return 5;
+      strcpy(str,content_type[4]);
+      break;
+    case text_css:
+      content_type_length=strlen(content_type[5]);
+      if(len <= content_type_length)
+        return 6;
+      strcpy(str,content_type[5]);
+      break;
+    case INVALID_MIME:
+      return -1;
     }
   return 0;
 }
@@ -258,7 +290,7 @@ int create_date_header(char* dheader, size_t n)
   //strncpy(dheader, "Date: Fri Dec  7 15:37:41 2018", 48);
   get_current_date_string(date, 128);
   // return 0;
-  return strncat(dheader, date,n) ? 0 : 1;
+  return strncat(dheader, date, n) ? 0 : 1;
 }
 
 int create_header_name_of_server(char* server_name, size_t len)
@@ -285,8 +317,8 @@ void fill_http_response(http_response_t *resp, const char* status_line)
   create_date_header(date, 128);
   create_header_name_of_server(server, 128);
   strcpy(resp->header.status_line, status_line);
-  strcpy(resp->header.content_length,"Content-Length=0");// filling this header placed in futher in convert_content_length()
-  strcpy(resp->header.content_type, "Content-Type: text/html"); //TODO make depending on content
+  strcpy(resp->header.content_length,"Content-Length=0");// filling this header placed in further in convert_content_length()
+  strcpy(resp->header.content_type, "Content-Type: text/html"); // default MIME type
   strncpy(resp->header.server, server, strlen(server)+1);
   strncpy(resp->header.date, date, strlen(date));
   resp->message_body=0;//must be file descriptor, initially equal zero
@@ -366,7 +398,7 @@ size_t create_serialized_http_header(char* headers, const http_response_header_t
 
   return ret;
 }
-long findout_filesize(int fd)
+long getfilesize(int fd)
 {
   long size, current_pos;
 
@@ -378,11 +410,45 @@ long findout_filesize(int fd)
 
 }
 
-int convert_content_length(http_response_header_t* header)
+int convertContentLength(http_response_header_t* header)
 {
   char num[22]={0};//for 64 bin 2^64(long) has 21 symbols
   strncpy(header->content_length,"Content-Length: ",16);
   long_to_str(num,header->content_length_num);
   strncat(header->content_length, num, 22);
+  return 0;
+}
+// converts file extension into mime type
+http_content_type_t getfileMIMEtype(const char* filename)
+{
+  char *fileExtension;
+  if ((fileExtension = strrchr(filename, '.')) == NULL)
+    return INVALID_MIME;
+
+  http_content_type_t mime = text_html;
+
+  for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
+    if (!(strncmp(fileExtension, file_ext[i], 5)))
+      return mime;
+  return INVALID_MIME;
+
+}
+
+int getFileMIMETypeInStr(char* content_type, size_t len, const char* filename)
+{
+  http_content_type_t ct;
+
+  if((ct = getfileMIMEtype(filename)) == INVALID_MIME)
+    {
+      WriteLog("Invalid MIME type, unsupported file extension");
+      return -1;
+    }
+
+  if((content_type_to_str(content_type, len, ct)) != 0)
+    {
+      WriteLog("Insufficient buffer length for writing Content Type, content_type=%d", ct);
+      return -1;
+    }
+
   return 0;
 }

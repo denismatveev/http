@@ -45,3 +45,15 @@ long long_to_str(char *str, long number)
 {
   return sprintf(str,"%lu", number);
 }
+int checkRegularFile(int fd)
+{
+  struct stat sb;
+  fstat(fd, &sb);
+  switch (sb.st_mode & S_IFMT)
+    {
+    case S_IFREG:
+      return 0;
+    default:
+      return -1;
+    }
+}
