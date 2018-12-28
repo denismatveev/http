@@ -6,12 +6,101 @@
 
 /* General */
 
-/* array of strings to search symbol name of HTTP method */
-char *http_method[] = {"GET", "POST", "HEAD", "PUT", "DELETE", "CONNECT", "OPTIONS","TRACE", "PATCH", NULL};
-char *http_protocol_version[] = {"HTTP/1.0", "HTTP/1.1", "HTTP/2", NULL};
-char *reason_code_name[] = {"Bad Request", "Not Found", "OK", "Internal Error", "Not Implemented"};
-char *content_type[] = {"Content-Type: text/html", "Content-Type: image/jpg", "Content-Type: application/pdf", "Content-Type: image/png", "Content-Type: video/mpeg", "Content-Type: text/css"};
+char *http_method[] = {
+  "GET",
+  "POST",
+  "HEAD",
+  "PUT",
+  "DELETE",
+  "CONNECT",
+  "OPTIONS",
+  "TRACE",
+  "PATCH",
+  NULL
+};
+char *http_protocol_version[] = {
+  "HTTP/1.0",
+  "HTTP/1.1",
+  "HTTP/2",
+  NULL
+};
+char *reason_code_name[] = {
+  "Bad Request",
+  "Not Found",
+  "OK",
+  "Entity Too Large",
+  "Internal Error",
+  "Not Implemented"
+};
+char *content_type[] = {
+  "Content-Type: text/html",
+  "Content-Type: image/jpg",
+  "Content-Type: application/pdf",
+  "Content-Type: image/png",
+  "Content-Type: video/mpeg",
+  "Content-Type: text/css"
+};
 char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
+char* general_header[] = {
+  "Cache-Control",
+  "Connection",
+  "Date",
+  "Pragma",
+  "Trailer",
+  "Transfer-Encoding",
+  "Upgrade",
+  "Via",
+  "Warning",
+  NULL
+};
+char* response_header[] = {
+  "Accept-Ranges",
+  "Age",
+  "ETag",
+  "Location",
+  "Proxy-Authenticate",
+  "Retry-After",
+  "Server",
+  "Vary",
+  "WWW-Authenticate"
+};
+
+char* entity_header[] = {
+
+  "Allow",
+  "Content-Encoding",
+  "Content-Language",
+  "Content-Length",
+  "Content-Location",
+  "Content-MD5",
+  "Content-Range",
+  "Content-Type",
+  "Expires",
+  "Last-Modified"
+};
+
+char *request_header[] = {
+  "Accept",
+  "Accept-Charset",
+  "Accept-Encoding",
+  "Accept-Language",
+  "Authorization",
+  "Expect",
+  "From",
+  "Host",
+  "If-Match",
+  "If-Modified-Since",
+  "If-None-Match",
+  "If-Range",
+  "If-Unmodified-Since",
+  "Max-Forwards",
+  "Proxy-Authorization",
+  "Range",
+  "Referer",
+  "TE",
+  "User-Agent",
+};
+
 http_method_t find_http_method(const char *sval)
 {
   http_method_t result = GET; /* value corresponding to etable[0] */
@@ -130,23 +219,29 @@ int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
         return 2;
       strcpy(str,reason_code_name[1]);
       break;
-    case OK:
+    case Entity_Too_Large:
       reason_code_size=strlen(reason_code_name[2]);
       if(len <= reason_code_size)
-        return 3;
+        return 2;
       strcpy(str,reason_code_name[2]);
       break;
-    case Internal_Error:
+    case OK:
       reason_code_size=strlen(reason_code_name[3]);
       if(len <= reason_code_size)
-        return 4;
+        return 3;
       strcpy(str,reason_code_name[3]);
       break;
-    case Not_implemented:
+    case Internal_Error:
       reason_code_size=strlen(reason_code_name[4]);
       if(len <= reason_code_size)
-        return 5;
+        return 4;
       strcpy(str,reason_code_name[4]);
+      break;
+    case Not_implemented:
+      reason_code_size=strlen(reason_code_name[5]);
+      if(len <= reason_code_size)
+        return 5;
+      strcpy(str,reason_code_name[5]);
       break;
     }
   return 0;
@@ -179,8 +274,8 @@ int create_status_line(char* str, size_t len, http_protocol_version_t p, http_re
 }
 
 /* Requests */
-
-int create_http_request_from_raw_data(http_request_t *req, const raw_client_data_t *rd)
+// parse only Request-Line
+int create_http_request_from_raw_data(http_request_old_t *req, const raw_client_data_t *rd)
 {
   if(rd == NULL)
     return -1;
@@ -190,9 +285,10 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
   char tmpparam[PARAMS_STRING_LENGTH];
 
 
-  char *tmp =strdup(rd->initial_data);
-  tok = strtok(tmp,delim);
-  while(tok != NULL && i < 3)
+  // char *tmp =strdup(rd->initial_data);
+  // tok = strtok(tmp,delim);
+  tok = strtok(rd->initial_data, delim); // search for Request-Line
+  while(tok != NULL && i < 4)
     {
       switch(i)
         {
@@ -200,7 +296,7 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
           // search for request method
           if((req->method=find_http_method(tok)) == -1)
             {
-              free(tmp);
+              // free(tmp);
               return -1;
             }
           break;
@@ -216,31 +312,39 @@ int create_http_request_from_raw_data(http_request_t *req, const raw_client_data
           // search for http protocol
           if((req->http_proto=find_http_protocol_version(tok)) == -1)
             {
-              free(tmp);
+              // free(tmp);
               return -2;
             }
+          break;
+        case 3:
+          {
+            WriteLog("case 3: tok=%s", tok);
+            if((strncmp(tok, "Host:", 5)) == 0)
+              strncpy(req->host,tok+5,8192);
+          }
           break;
         }
       i++;
       tok = strtok(NULL, delim);
     }
-  if( i != 3 )
+  if( i != 4 )
     return -3;
-  free(tmp);
+  // free(tmp);
+  WriteLog("Host:%s",req->host);
   return 0;
 }
 
-http_request_t* create_request()
+http_request_old_t* create_request()
 {
-  http_request_t* htp;
+  http_request_old_t* htp;
 
-  if((htp = (http_request_t*)malloc(sizeof(http_request_t))) == NULL) // I don't use memset() to zeroing or calloc to improve performance. Instead of this I decided to add 0 to end of data
+  if((htp = (http_request_old_t*)malloc(sizeof(http_request_old_t))) == NULL) // I don't use memset() to zeroing or calloc to improve performance. Instead of this I decided to add 0 to end of data
     return NULL;
 
   return htp;
 }
 
-void delete_http_request(http_request_t* ptr)
+void delete_http_request(http_request_old_t* ptr)
 {
   if(ptr == NULL)
     {
@@ -273,7 +377,6 @@ void delete_raw_data(raw_client_data_t* rd)
 int get_current_date_string(char* date, size_t n)
 {
 
-  //setlocale(LC_TIME,"en_US.UTF-8");
   time_t t = time(NULL);
   struct tm *tm = gmtime(&t);
 
@@ -300,16 +403,16 @@ int create_header_name_of_server(char* server_name, size_t len)
   return 0;
 }
 
-http_response_t* create_http_response(void)
+http_response_old_t* create_http_response(void)
 {
-  http_response_t* resp;
-  if((resp = (http_response_t*)malloc(sizeof(http_response_t))) == NULL)
+  http_response_old_t* resp;
+  if((resp = (http_response_old_t*)malloc(sizeof(http_response_old_t))) == NULL)
     return NULL;
 
   return resp;
 }
 
-void fill_http_response(http_response_t *resp, const char* status_line)
+void fill_http_response(http_response_old_t *resp, const char* status_line)
 {
 
   char date[128]={0}, server[128]={0};
@@ -324,7 +427,7 @@ void fill_http_response(http_response_t *resp, const char* status_line)
   resp->message_body=0;//must be file descriptor, initially equal zero
 
 }
-void delete_http_response(http_response_t *hp)
+void delete_http_response(http_response_old_t *hp)
 {
   if(hp == NULL)
     {
@@ -334,7 +437,7 @@ void delete_http_response(http_response_t *hp)
   free(hp);
 }
 
-int create_200_reply(http_response_t* res, const http_request_t* req)
+int create_200_response(http_response_old_t* res, const http_request_old_t* req)
 {
   char status_line[128]={0};
   int ret;
@@ -346,7 +449,7 @@ int create_200_reply(http_response_t* res, const http_request_t* req)
 
 
 }
-int create_404_reply(http_response_t *res, const http_request_t* req)
+int create_404_response(http_response_old_t *res, const http_request_old_t* req)
 {
   char status_line[128]={0};
   int ret;
@@ -356,8 +459,17 @@ int create_404_reply(http_response_t *res, const http_request_t* req)
 
   return 0;
 }
+int create_413_response(http_response_old_t *res, const http_request_old_t* req)
+{
+  char status_line[128]={0};
+  int ret;
+  if((ret = create_status_line(status_line, 128, req->http_proto, Entity_Too_Large)) == -1)
+    return -1;
+  fill_http_response(res, status_line);
 
-int create_500_reply(http_response_t *res, const http_request_t* req)
+  return 0;
+}
+int create_500_response(http_response_old_t *res, const http_request_old_t* req)
 {
   char status_line[128]={0};
   int ret;
@@ -368,7 +480,7 @@ int create_500_reply(http_response_t *res, const http_request_t* req)
   return 0;
 }
 
-int create_501_reply(http_response_t * res, const http_request_t* req)
+int create_501_response(http_response_old_t * res, const http_request_old_t* req)
 {
   char status_line[128]={0};
   int ret;
@@ -380,7 +492,7 @@ int create_501_reply(http_response_t * res, const http_request_t* req)
   return 0;
 }
 
-int create_400_reply(http_response_t *res, const http_request_t* req)
+int create_400_response(http_response_old_t *res, const http_request_old_t* req)
 {
   char status_line[128]={0};
   int ret;
@@ -391,14 +503,14 @@ int create_400_reply(http_response_t *res, const http_request_t* req)
   return 0;
 }
 
-size_t create_serialized_http_header(char* headers, const http_response_header_t *rs, size_t len)
+size_t create_serialized_http_header(char* headers, const http_response_header_old_t *rs, size_t len)
 {
   size_t ret;
   ret=(size_t)snprintf(headers, len,"%s\n%s\n%s\n%s\n%s\r\n\r\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);
 
   return ret;
 }
-long getfilesize(int fd)
+long get_file_size(int fd)
 {
   long size, current_pos;
 
@@ -410,7 +522,7 @@ long getfilesize(int fd)
 
 }
 
-int convertContentLength(http_response_header_t* header)
+int convert_Content_Length(http_response_header_old_t* header)
 {
   char num[22]={0};//for 64 bin 2^64(long) has 21 symbols
   strncpy(header->content_length,"Content-Length: ",16);
@@ -419,7 +531,7 @@ int convertContentLength(http_response_header_t* header)
   return 0;
 }
 // converts file extension into mime type
-http_content_type_t getfileMIMEtype(const char* filename)
+http_content_type_t get_file_MIME_type(const char* filename)
 {
   char *fileExtension;
   if ((fileExtension = strrchr(filename, '.')) == NULL)
@@ -434,11 +546,11 @@ http_content_type_t getfileMIMEtype(const char* filename)
 
 }
 
-int getFileMIMETypeInStr(char* content_type, size_t len, const char* filename)
+int get_file_MIME_type_in_str(char* content_type, size_t len, const char* filename)
 {
   http_content_type_t ct;
 
-  if((ct = getfileMIMEtype(filename)) == INVALID_MIME)
+  if((ct = get_file_MIME_type(filename)) == INVALID_MIME)
     {
       WriteLog("Invalid MIME type, unsupported file extension");
       return -1;

@@ -188,40 +188,40 @@ void* process_jobs(void *args)
 
       // parsing raw client data and create a http_request
       ret=create_http_request_from_raw_data(job->req, job->raw_data);
-      // depending on what data are in http_request we are making a reply
+      // depending on what data are in http_request we are making a response
       // TODO implement HEAD request
       if(ret < 0 )
         {
           // bad request
-          create_400_reply(job->response, job->req);
+          create_400_response(job->response, job->req);
           fd=open("error_pages/400.html",O_RDONLY );
           job->response->message_body=fd;
-          job->response->header.content_length_num=getfilesize(fd);
-          convertContentLength(&job->response->header);
+          job->response->header.content_length_num=get_file_size(fd);
+          convert_Content_Length(&job->response->header);
           goto PUSH;
         }
-      // finding a file and creating a reply
+      // finding a file and creating a response
       if(job->req->method == GET)
         {
           fd = open(job->req->params, O_RDONLY);
           if((checkRegularFile(fd)) != 0)
           {
-             create_404_reply(job->response, job->req);
+             create_404_response(job->response, job->req);
              fd=open("error_pages/404.html",O_RDONLY );
              job->response->message_body=fd;
-             job->response->header.content_length_num=getfilesize(fd);
-             convertContentLength(&job->response->header);
+             job->response->header.content_length_num=get_file_size(fd);
+             convert_Content_Length(&job->response->header);
              goto PUSH;
         }
 
           if(fd > 0)
             {
               //everything is OK
-              create_200_reply(job->response, job->req);
+              create_200_response(job->response, job->req);
               job->response->message_body=fd;
-              job->response->header.content_length_num=getfilesize(fd);
-              getFileMIMETypeInStr(job->response->header.content_type, 256, job->req->params);
-              convertContentLength(&job->response->header);
+              job->response->header.content_length_num=get_file_size(fd);
+              get_file_MIME_type_in_str(job->response->header.content_type, 256, job->req->params);
+              convert_Content_Length(&job->response->header);
               goto PUSH;
             }
           else if(fd < 0)
@@ -231,22 +231,22 @@ void* process_jobs(void *args)
               if(err == EACCES || err == ENOENT)
                 {
                   //no such file
-                  create_404_reply(job->response, job->req);
+                  create_404_response(job->response, job->req);
                   fd=open("error_pages/404.html",O_RDONLY );
                   job->response->message_body=fd;
-                  job->response->header.content_length_num=getfilesize(fd);
-                  convertContentLength(&job->response->header);
+                  job->response->header.content_length_num=get_file_size(fd);
+                  convert_Content_Length(&job->response->header);
                   goto PUSH;
 
                 }
               else if(err == ENFILE || err == ELOOP)
                 {
                   //specific errors
-                  create_500_reply(job->response, job->req);
+                  create_500_response(job->response, job->req);
                   fd=open("error_pages/500.html",O_RDONLY );
                   job->response->message_body=fd;
-                  job->response->header.content_length_num=getfilesize(fd);
-                  convertContentLength(&job->response->header);
+                  job->response->header.content_length_num=get_file_size(fd);
+                  convert_Content_Length(&job->response->header);
                   goto PUSH;
                 }
             }
@@ -254,11 +254,11 @@ void* process_jobs(void *args)
       else
         {
           // not implemented
-          create_501_reply(job->response, job->req);
+          create_501_response(job->response, job->req);
           fd=open("error_pages/501.html",O_RDONLY );
           job->response->message_body=fd;
-          job->response->header.content_length_num=getfilesize(fd);
-          convertContentLength(&job->response->header);
+          job->response->header.content_length_num=get_file_size(fd);
+          convert_Content_Length(&job->response->header);
           goto PUSH;
         }
 
