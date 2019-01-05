@@ -36,4 +36,4 @@ TODO:
 * graceful reload daemon by signal (```kill -SIGUSR1```, for example)
 * create and dedicate HTTP library
 # Working copy 
-Running server is availabe at http://denis.ilmen-tau.ru/index.html
+Running server is available at http://denis.ilmen-tau.ru/index.html
