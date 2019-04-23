@@ -84,8 +84,12 @@ int reserve_array(assoc_t* arr, unsigned int size)
     return -2;
 
   tmp=arr->array;
-  //TODO moving tuples here !!!
+
   arr->array=new_tuple_arr;
+  for(unsigned int i=0; i < arr->capacity;i++)
+    new_tuple_arr[i]=tmp[i];
+
+  arr->capacity=size;
 
   free(tmp);
   return 0;
