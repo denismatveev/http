@@ -24,6 +24,8 @@ void* run_threads(void* args)
           strncpy(j->raw_data->initial_data, str, 100);
           push_job(q_array[k], j);
           pop_job(q_array[k],&j);
+          destroy_job(j);
+
         }
     }
 

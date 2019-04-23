@@ -23,4 +23,5 @@ int setnonblocking (int);
 int int_to_str(char *str, int number);
 long long_to_str(char *str, long number);
 int checkRegularFile(int fd);
+void removeSpaces(char *str);
 #endif //COMMON_H

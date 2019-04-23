@@ -4,7 +4,7 @@
 #include<pthread.h>
 //#include "cmockery.h"
 #define QUEUES 5
-#define THREADS 5
+#define THREADS 15
 #define NJOBS 3000
 
 struct thread_args
