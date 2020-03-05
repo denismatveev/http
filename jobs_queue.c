@@ -35,7 +35,7 @@ void destroy_job(job_t* j)
 }
 
 
-jobs_queue_t* init_jobs_queue(char *queuename)
+jobs_queue_t* init_jobs_queue(const char *queuename)
 {
 
   jobs_queue_t *q;
@@ -82,7 +82,7 @@ int close_jobs_queue(jobs_queue_t *q)
   return 0;
 }
 
-int push_job(jobs_queue_t *q, job_t *j)
+int push_job(jobs_queue_t *q, const job_t *j)
 {
 
   pthread_mutex_lock(&q->lock);
@@ -90,7 +90,7 @@ int push_job(jobs_queue_t *q, job_t *j)
 
   if(q->high_bound < q->capacity)
     {
-      q->array[(q->high_bound)++]=j;
+      q->array[(q->high_bound)++]=(job_t*)&j;
 #ifdef QUEUEDEBUG
       WriteLog("Pushed job into queue '%s'", q->queuename);
 #endif
@@ -109,7 +109,7 @@ int push_job(jobs_queue_t *q, job_t *j)
           return 2;
         }
       q->array = ptr;
-      q->array[(q->high_bound)++]=j;
+      q->array[(q->high_bound)++]=(job_t*)&j;
       q->capacity += QUEUE_SIZE_RESERVE;
 
 #ifdef QUEUEDEBUG

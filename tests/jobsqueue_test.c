@@ -1,4 +1,4 @@
-#include "queue_test.h"
+#include "jobsqueue_test.h"
 
 jobs_queue_t* q_array[QUEUES];
 pthread_barrier_t barrier;
