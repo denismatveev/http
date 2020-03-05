@@ -487,8 +487,6 @@ void printRBTree(rb_tree_t *t)
                 qe->is_end=1;
             push(q,qe);
         }
-        //        if(tmp->node->right_node == NULL || tmp->node->left_node == NULL)
-        //            continue;
 
         print_node(tmp->node);
         if(tmp->is_end == 1)
