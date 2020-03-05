@@ -3,10 +3,10 @@
 #include"queue.h"
 
 #pragma GCC diagnostic ignored "-Wuninitialized"
-// init_node() function is initializing RB tree node with section inside. The key of the node is hostname
+// NILL node
 node_t nullnode = { {'\0'}, NULL, Black, NULL, NULL, NULL };
 
-
+// init_node() function is initializing RB tree node with section inside. The key of the node is hostname
 node_t* init_node(const char *name, const char* rootdir, const char* index)
 {
     node_t* node;
@@ -66,7 +66,7 @@ rb_tree_t* init_rbtree(node_t* node)
     return tr;
 
 }
-// destroy_tree() is destroying all allocated nodes. To travers the nodes a queue is used. Initially the root is being put into queue, then the algorithm is putting all children if the root into queue(if they are not NULL)
+// destroy_tree() destroys all allocated nodes. To travers the nodes a queue is used. Initially the root is being put into queue, then the algorithm is putting all children if the root into queue(if they are not NULL)
 // it is Breadth-first search (BFS)
 // Queue implemeted as linked list
 void destroy_rbtree(rb_tree_t* t)
@@ -180,7 +180,8 @@ void rbtree_insert_balance(rb_tree_t *rbtree, node_t *node)
         {
             uncle = node->parent->parent->left_node;
 
-            if (uncle->color == Red) {
+            if (uncle->color == Red)
+            {
                 node->parent->color = Black;
                 uncle->color = Black;
                 node->parent->parent->color = Red;
@@ -371,8 +372,7 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
     if(to_delete->parent == NULL)
         return;
 
-    if(to_delete->right_node != NILL &&
-            to_delete->right_node != NILL)
+    if(to_delete->right_node != NILL && to_delete->right_node != NILL)
     {
         node_t *smright = to_delete->right_node;
 
@@ -383,8 +383,6 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
         orig_color=to_delete->color;
         to_delete->color=smright->color;
         smright->color=orig_color;
-
-        //  swap_ul(&to_delete->color, &smright->color);
 
         change_parent_ptr(rbtree, to_delete->parent, to_delete, smright);
         if(to_delete->right_node != smright)
@@ -418,7 +416,8 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
 
     if(to_delete->color == Red)
         ;
-    else if(child->color == Red) {
+    else if(child->color == Red)
+    {
         if(child!=NILL)
             child->color = Black;
     }
@@ -488,8 +487,8 @@ void printRBTree(rb_tree_t *t)
                 qe->is_end=1;
             push(q,qe);
         }
-//        if(tmp->node->right_node == NULL || tmp->node->left_node == NULL)
-//            continue;
+        //        if(tmp->node->right_node == NULL || tmp->node->left_node == NULL)
+        //            continue;
 
         print_node(tmp->node);
         if(tmp->is_end == 1)
