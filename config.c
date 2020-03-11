@@ -181,11 +181,11 @@ void destroy_config(config_t* cfg)
 
 int create_config(config_t *cfg, const char* fname)
 {
-    node_t* n;
+    node_t* n = NULL;
     FILE *f;
     long fsize;
     long pos=0;
-    section_t s;
+    section_t s = NULL;
 
     WriteLog("Parsing config file %s", fname);
 
