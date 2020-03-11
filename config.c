@@ -19,7 +19,7 @@
 // init_section() is initializing section
 // section is assoc array to store virtual host settings like index, root directory etc
 // section is RB tree node as well
-/* Here is an an example of server config */
+/* Here is an example of server config */
 /*
  * <General>
 port = 8080;
