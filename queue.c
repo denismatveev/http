@@ -12,7 +12,7 @@ q_elem_t init_q_elem(node_t* node)
 
     q->next=NULL;
     q->node=node;
-    q->is_end = 0;
+    q->is_end = 0;// used only for RBTree printing
 
     return q;
 }

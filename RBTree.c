@@ -1,10 +1,9 @@
-#include<string.h>
-#include"RBTree.h"
+#include"config.h"
 #include"queue.h"
 
 #pragma GCC diagnostic ignored "-Wuninitialized"
 // NILL node
-node_t nullnode = { {'\0'}, NULL, Black, NULL, NULL, NULL };
+node_t nullnode = { {0}, NULL, Black, NULL, NULL, NULL };
 
 // init_node() function is initializing RB tree node with section inside. The key of the node is hostname
 node_t* init_node(const char *name, const char* rootdir, const char* index)
@@ -31,11 +30,24 @@ node_t* init_node(const char *name, const char* rootdir, const char* index)
     if(fill_section(s,"index", index))
         return NULL;
 
+    node->section=NULL;
     node->color=Red;    // default colour is Red
     node->left_node=NILL;
     node->right_node=NILL;
     node->parent=NILL;
-    //  node->is_end=0;
+    return node;
+}
+
+node_t* init_node_s(section_t s)
+{
+    node_t* node;
+    if((node=(node_t*)malloc(sizeof(node_t))) == NULL)
+        return NULL;
+    node->section=(section_t)s;
+    node->color=Red;    // default colour is Red
+    node->left_node=NILL;
+    node->right_node=NILL;
+    node->parent=NILL;
 
     return node;
 }
@@ -379,7 +391,6 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
         while(smright->left_node != NILL)
             smright = smright->left_node;
 
-        // instead of swap_ul()
         orig_color=to_delete->color;
         to_delete->color=smright->color;
         smright->color=orig_color;
@@ -426,7 +437,7 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
 
 }
 
-node_t *rbtree_search (rb_tree_t *rbtree, char* hostname)
+node_t *rbtree_search (rb_tree_t *rbtree, const char *hostname)
 {
     int r = 0;
     node_t *node = rbtree->root;
@@ -442,6 +453,15 @@ node_t *rbtree_search (rb_tree_t *rbtree, char* hostname)
             node = node->right_node;
     }
     return NILL;
+}
+
+node_t* search_host(rb_tree_t* tree, const char* host)
+{
+    node_t* n;
+    if((n=rbtree_search(tree, host)) == NILL)
+        return NULL;
+
+    return n;
 }
 
 void print_node(node_t* node)

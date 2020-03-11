@@ -31,25 +31,4 @@ int remove_elem(assoc_t* arr, const char* key);
 long unsigned int hash_func(const char* k);
 unsigned int calc_index(long unsigned int hash, unsigned int size);
 
-#endif //
-
-
-
-
-// <General>
-//port = 8080;
-//listen =127.0.0.1;
-//workers =5;#test
-//timeout = 300;
-//</General>
-//<Host>
-//name=denis.ilmen-tau.ru
-//rootdir=/var/www/denis/
-//indexfile=index.html
-//</Host>
-//<Host>
-//name=nastya.ilmen-tau.ru
-//rootdir=/var/www/nastya
-//indexfile=index.html
-//</Host>
-
+#endif //ASSOCIATIVE_ARRAY_H_

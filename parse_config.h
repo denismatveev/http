@@ -13,4 +13,7 @@ void default_cfg(config_t*);
 int parse_cfg(config_t *cfg, const char* fname);
 char* parse_str(char* wholestr, char delim, char ending);
 extern config_t cfg;
+
+int check_config();
+
 #endif //PARSE_CONFIG_H

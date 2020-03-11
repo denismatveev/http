@@ -3,7 +3,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<malloc.h>
-#include"RBTree.h"
+#include"config.h"
 
 #define ALLOCATION_ERROR 3
 
