@@ -269,7 +269,7 @@ long get_section_from_cfg(section_t section, FILE* f)
     char key[256];
     char val[256];
     char comment_sign='#';
-    section_type_t st;
+
     uint16_t port;
     char *general_section_begin="<General>";
     char *general_section_end="</General>";
@@ -283,7 +283,7 @@ long get_section_from_cfg(section_t section, FILE* f)
     unsigned long virtual_server_section_end_len=strlen(virtual_server_section_end);
     unsigned long default_server_section_begin_len=strlen(default_server_section_begin);
     unsigned long default_server_section_end_len=strlen(default_server_section_end);
-    section=init_section(st);
+
     while((fgets(str, 256, f)) != NULL)
     {
         if(!(strncmp(str,general_section_begin,general_section_begin_len)))
@@ -301,6 +301,7 @@ long get_section_from_cfg(section_t section, FILE* f)
                         WriteLog("Unacceptable %s in general section",key);
                         return -1;
                     }
+                    section=init_section(General);
                     fill_section(section, key, val);
                     section->type=General;
 
@@ -323,6 +324,7 @@ long get_section_from_cfg(section_t section, FILE* f)
                         WriteLog("Unacceptable %s in virtual host section",key);
                         return -1;
                     }
+                    section=init_section(Host);
                     fill_section(section, key, val);
                     section->type=Host;
                 }
@@ -344,6 +346,7 @@ long get_section_from_cfg(section_t section, FILE* f)
                         WriteLog("Unacceptable %s in virtual host section(default host)",key);
                         return -1;
                     }
+                    section=init_section(Default);
                     fill_section(section, key, val);
                     section->type=Default;
                 }
