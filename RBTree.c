@@ -230,6 +230,8 @@ void change_parent_ptr(rb_tree_t* rbtree, node_t* parent, node_t* old, node_t* n
 
 node_t* insert_in_rbtree(rb_tree_t *rbtree, node_t *n)
 {
+    if(rbtree == NULL || n == NULL)
+        return NULL;
     int r = 0;
     node_t *node = rbtree->root;
     node_t *parent = NILL;
@@ -243,6 +245,7 @@ node_t* insert_in_rbtree(rb_tree_t *rbtree, node_t *n)
             node = node->left_node;
         else if(r > 0)
             node = node->right_node;
+        else return NULL; // if such node already exist
     }
 
     n->parent = parent;

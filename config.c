@@ -5,7 +5,7 @@
 #include"config.h"
 #include"queue.h"
 #include"common.h"
-
+#define comment_sign '#'
 /* config is implelented as RB tree where each node contains a section. Section in its turn contains associative array(key=value) for all domains.
  * Associative domain implelemted as hash map with open addressing.
  * RB tree implemented with the following properties:
@@ -21,23 +21,30 @@
 // section is RB tree node as well
 /* Here is an example of server config */
 /*
- * <General>
+# config
+<General>
 port = 8080;
+#rootdir =/var/www/;
 listen =127.0.0.1;
 workers =5;#test
-timeout = 300;
 </General>
 <Host>
-name=denis.ilmen-tau.ru
-rootdir=/var/www/denis/
-indexfile=index.html
+servername=site1.example.com;
+rootdir=/var/www/site1;
+indexfile=index.html;
 </Host>
 <Host>
-name=nastya.ilmen-tau.ru
-rootdir=/var/www/nastya
-indexfile=index.html
+servername=site2.example.com;
+rootdir=/var/www/site2;
+indexfile=index.html;
 </Host>
-* */
+<Default>
+servername=site3.example.com;
+rootdir=/var/www/site3;
+indexfile=index.htm;
+</Default>
+# end of config
+*/
 
 char *hosts_reserved_names[] = {
     "rootdir",
@@ -52,6 +59,43 @@ char *general_reserved_names[] = {
     "timeout",
     NULL
 };
+/* Important! Take into account the order of section names is considered ! */
+char* opening_section_names[] = {
+    "<General>",
+    "<Default>",
+    "<Host>",
+    NULL
+};
+char* closing_section_names[] = {
+    "</General>",
+    "</Default>",
+    "</Host>",
+    NULL
+};
+int check_closing_section_name(char* sect)
+{
+    int i=0;
+
+    while(closing_section_names[i] != NULL)
+    {
+        if((strncmp(sect,closing_section_names[i],11)) == 0)
+            return 0;
+        i++;
+    }
+    return INVALID_SECTION_NAME;
+}
+int check_opening_section_name(char* sect)
+{
+    int i=0;
+
+    while(opening_section_names[i] != NULL)
+    {
+        if((strncmp(sect,opening_section_names[i],11)) == 0)
+            return 0;
+        i++;
+    }
+    return INVALID_SECTION_NAME;
+}
 int check_general_reserved_key(char* key)
 {
     int i=0;
@@ -127,12 +171,17 @@ int parse_str(char* wholestr, char* key, char* value, char comment, char delim, 
     delims[1]=0;
     char wholestr_cpy[256];
     char* saveptr;
+    if(check_if_str_commented_or_blank(wholestr, comment, 256))
+        return 2;
     strncpy(wholestr_cpy, wholestr, 256);
 
     if((strend=strchr(wholestr_cpy, comment)) != NULL)
         *strend=0;
     if((strend=strchr(wholestr_cpy, ending)) != NULL)
         *strend=0;
+    else
+        return 3;
+
 
     if((r=strtok_r(wholestr_cpy, delims,&saveptr)) != NULL)
     {
@@ -143,7 +192,9 @@ int parse_str(char* wholestr, char* key, char* value, char comment, char delim, 
             strncpy(value, r, 256);
             return 0;
         }
+        return 1;
     }
+
     return 1;
 }
 
@@ -179,13 +230,14 @@ void destroy_config(config_t* cfg)
     return;
 }
 
-int create_config(config_t *cfg, const char* fname)
+int create_config(config_t **cfg, const char* fname)
 {
     node_t* n = NULL;
     FILE *f;
     long fsize;
     long pos=0;
     section_t s = NULL;
+    char sitename[256]={0};
 
     WriteLog("Parsing config file %s", fname);
 
@@ -218,147 +270,283 @@ int create_config(config_t *cfg, const char* fname)
     }
 
 
-    cfg=init_config();
+    *cfg=init_config();
     if(cfg == NULL)
     {
         WriteLog("Cannot create config");
         return 1;
     }
 
-
-    if((cfg->hosts=init_rbtree(n)) == NULL)
-    {
-        WriteLogPError("Initializing config");
-        return 1;
-    }
-
     while(pos < fsize)
     {
-        pos=get_section_from_cfg(s, f);
+        if((pos=get_section_from_cfg(&s, sitename, f)) == -1)
+        {
+            fclose(f);
+            return -1;
+        }
         if(s->type == General)
         {
-            cfg->general=s;
-
+            (*cfg)->general=s;
         }
         else if(s->type == Default)
         {
-            cfg->general=s;
+            (*cfg)->default_vhost=s;
         }
         else if(s->type == Host)
         {
             n=init_node_s(s);
-            cfg->hosts=init_rbtree(n);
+            strncpy(n->hostname,sitename,256);
+            if((*cfg)->hosts == NULL)
+                (*cfg)->hosts=init_rbtree(n);
+            else
+                insert_in_rbtree((*cfg)->hosts, n);
         }
-        else
-        {
-            WriteLog("Wrong config");
-            return 1;
-        }
-
     }
 
     fclose(f);
+    WriteLog("Parsing config: OK");
     return 0;
 }
 
-long get_section_from_cfg(section_t section, FILE* f)
+int check_balanced_closing_section_name(char* str, section_type_t st)
 {
-    char str[256];
+    size_t len=strlen(str);
+    if(len == 0)
+        return 1;
+
+    if((strncmp(str, closing_section_names[st], len)) == 0)
+        return 0;
+    if(!(check_closing_section_name(str)))
+    {
+        WriteLog("Found wrong closing section '%s'", str);
+        return -1;
+    }
+    if(!(check_opening_section_name(str)))
+    {
+        WriteLog("Found wrong opening section '%s'", str);
+        return -1;
+    }
+    return 1;
+}
+
+int config_read_section(FILE* f, section_t* section, char* sitename, int *section_counter, section_type_t s)
+{
+    char str[256]={0};
     char del='=';
     char end=';';
     char key[256];
     char val[256];
-    char comment_sign='#';
-
-    uint16_t port;
-    char *general_section_begin="<General>";
-    char *general_section_end="</General>";
-    char *virtual_server_section_begin="<Host>";
-    char *virtual_server_section_end="</Host>";
-    char *default_server_section_begin="<Default>";
-    char *default_server_section_end="</Default>";
-    unsigned long general_section_begin_len=strlen(general_section_begin);
-    unsigned long general_section_end_len=strlen(general_section_end);
-    unsigned long virtual_server_section_begin_len=strlen(virtual_server_section_begin);
-    unsigned long virtual_server_section_end_len=strlen(virtual_server_section_end);
-    unsigned long default_server_section_begin_len=strlen(default_server_section_begin);
-    unsigned long default_server_section_end_len=strlen(default_server_section_end);
-
-    while((fgets(str, 256, f)) != NULL)
+    int r, rc;
+    size_t len;
+    switch (s)
     {
-        if(!(strncmp(str,general_section_begin,general_section_begin_len)))
-        {
-            while((fgets(str, 256, f)) != NULL)
-            {
-                if(strncmp(str, general_section_end, general_section_end_len))
-                {
-                    if((parse_str(str, key, val, comment_sign, del, end)) != 0)
-                    {
-                        WriteLog("Invalid config near %s",str);
-                        return -1;
-                    } else if(check_general_reserved_key(key))
-                    {
-                        WriteLog("Unacceptable %s in general section",key);
-                        return -1;
-                    }
-                    section=init_section(General);
-                    fill_section(section, key, val);
-                    section->type=General;
+    case 0:
+        /* General config */
+    {
 
-                }
-                return ftell(f);
+        len=strlen(closing_section_names[General]);
+        *section=init_section(General);
+        while((fgets(str, 256, f)) != NULL)
+        {
+            replace_trailing(str);
+            removeSpaces(str);
+            if((rc=check_balanced_closing_section_name(str, General)) == 0)
+            {
+                (*section_counter)--;
+                return 0;
+
             }
+            else if (rc == -1)
+                return -1;
+
+            if((r=parse_str(str, key, val, comment_sign, del, end)) == 1)
+            {
+                WriteLog("Invalid config near '%s'", str);
+                return -1;
+            }
+            else if(r == 2)/* empty string */
+            {
+                continue;
+            }
+            else if (r == 3)
+            {
+                WriteLog("No termination ';' in general section near '%s'", str);
+                return -1;
+            }
+            else if(check_general_reserved_key(key))
+            {
+                WriteLog("Invalid param '%s' in general section", key);
+                return -1;
+            }
+
+            fill_section(*section, key, val);
+
         }
-        else if(!(strncmp(str,virtual_server_section_begin, virtual_server_section_begin_len)))
+        if((*section_counter != 0))
         {
-            while((fgets(str, 256, f)) != NULL)
-            {
-                if(strncmp(str, virtual_server_section_end, virtual_server_section_end_len))
-                {
-                    if((parse_str(str,key, val, comment_sign, del, end)) != 0)
-                    {
-                        WriteLog("Invalid config near %s",str);
-                        return -1;
-                    } else if(check_vhost_reserved_key(key))
-                    {
-                        WriteLog("Unacceptable %s in virtual host section",key);
-                        return -1;
-                    }
-                    section=init_section(Host);
-                    fill_section(section, key, val);
-                    section->type=Host;
-                }
-                return ftell(f);
-            }
-
-        }else if(!(strncmp(str,default_server_section_begin, default_server_section_begin_len)))
-        {
-            while((fgets(str, 256, f)) != NULL)
-            {
-                if(strncmp(str, default_server_section_end, default_server_section_end_len))
-                {
-                    if((parse_str(str,key, val, comment_sign, del, end)) != 0)
-                    {
-                        WriteLog("Invalid config near %s",str);
-                        return -1;
-                    } else if(check_vhost_reserved_key(key))
-                    {
-                        WriteLog("Unacceptable %s in virtual host section(default host)",key);
-                        return -1;
-                    }
-                    section=init_section(Default);
-                    fill_section(section, key, val);
-                    section->type=Default;
-                }
-                return ftell(f);
-            }
+            WriteLog("Wrong config in section %s", opening_section_names[General]);
+            return -1;
         }
     }
 
+        break;
 
-    destroy_section(section);
-    return -1;
 
+    case 1:
+        /* Default config */
+    {
+        len=strlen(closing_section_names[Default]);
+        *section=init_section(Default);
+        while((fgets(str, 256, f)) != NULL)
+        {
+            removeSpaces(str);
+            replace_trailing(str);
+            if((rc=check_balanced_closing_section_name(str, Default)) == 0)
+            {
+                (*section_counter)--;
+                return 0;
+
+            }
+            else if (rc == -1)
+                return -1;
+
+            if((r=parse_str(str, key, val, comment_sign, del, end)) == 1)
+            {
+                WriteLog("Invalid config near '%s'", str);
+                return -1;
+            }
+            else if(r == 2)/* empty string */
+            {
+                continue;
+            }
+            else if (r == 3)
+            {
+                WriteLog("No termination ';' in default host section near '%s'", str);
+                return -1;
+            }
+            else if(check_vhost_reserved_key(key))
+            {
+                WriteLog("Invalid param '%s' in default host section", key);
+                return -1;
+            }
+            fill_section(*section, key, val);
+        }
+        if((*section_counter != 0))
+        {
+            WriteLog("Wrong config in section %s", opening_section_names[Default]);
+            return -1;
+        }
+
+    }
+
+        break;
+    case 2:
+        /* Host config */
+    {
+
+        len=strlen(closing_section_names[Host]);
+        *section=init_section(Host);
+        while((fgets(str, 256, f)) != NULL)
+        {
+            removeSpaces(str);
+            replace_trailing(str);
+            if((rc=check_balanced_closing_section_name(str, Host)) == 0)
+            {
+                (*section_counter)--;
+                return 0;
+
+            }
+            else if (rc == -1)
+                return -1;
+
+            if((r=parse_str(str,key, val, comment_sign, del, end)) == 1)
+            {
+                WriteLog("Invalid config near '%s'", str);
+                return -1;
+            }
+            else if(r == 2)/* empty string */
+            {
+                continue;
+            }
+            else if (r == 3)
+            {
+                WriteLog("No termination ';' in virtual host section near '%s'", str);
+                return -1;
+            }
+            else if(check_vhost_reserved_key(key))
+            {
+                WriteLog("Invalid param '%s' in virtual host section", key);
+                return -1;
+            }
+
+            if((fill_section(*section, key, val) == 0))
+                if((strncmp(key, hosts_reserved_names[2], 256)) == 0)
+                    strncpy(sitename, val, 256);
+        }
+        if((*section_counter != 0))
+        {
+            WriteLog("Wrong config in section %s", opening_section_names[Host]);
+            return -1;
+        }
+
+    }
+        break;
+    }
+
+    return 0;
+
+}
+
+long get_section_from_cfg(section_t* section, char* sitename, FILE* f)
+{
+    char str[256]={0};
+    int section_counter=0;
+    int r=0;
+
+    //uint16_t port;
+
+    while((fgets(str, 256, f)) != NULL)
+    {
+        replace_trailing(str);
+        if((check_if_str_commented_or_blank(str, comment_sign, 256)) == 1)
+            continue;
+        if(!(strncmp(str,opening_section_names[General],strlen(opening_section_names[General]))))
+        {
+            section_counter++;
+            if((r=config_read_section(f, section, sitename, &section_counter, General)) == 0)
+                return ftell(f);
+            else
+                return -1;
+        }
+        else if(!(strncmp(str,opening_section_names[Default], strlen(opening_section_names[Default]))))
+        {
+            section_counter++;
+            if((r=config_read_section(f, section, sitename, &section_counter, Default)) == 0)
+                return ftell(f);
+            else
+                return -1;
+        }
+        else if(!(strncmp(str,opening_section_names[Host], strlen(opening_section_names[Host]))))
+        {
+            section_counter++;
+            if((r=config_read_section(f, section, sitename, &section_counter, Host)) == 0)
+                return ftell(f);
+            else
+                return -1;
+        }
+        else
+        {
+            WriteLog("No correct opening section near '%s'", str);
+            return -1;
+
+        }
+    }
+    if(section_counter != 0)
+    {
+        WriteLog("Wrong config near '%s'", str);
+        return -1;
+    }
+    return ftell(f);
 }
 
 section_t search_for_host(const config_t *c, const char* host)
@@ -370,3 +558,4 @@ section_t search_for_host(const config_t *c, const char* host)
 }
 
 // TODO check_config(config_t* cfg);
+//void print_cfg(config_t* cfg);

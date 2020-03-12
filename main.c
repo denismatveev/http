@@ -88,5 +88,3 @@ int main(int argc, char** argv)
   create_worker();
 
 }
-
-//TODO add type="text/css" type and another MIME types

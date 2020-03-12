@@ -49,7 +49,11 @@ add_executable(test_rbtree
     queue.c
     associative.c
     common.c)
+add_executable(test_cfg
+    tests/cfg_test.c
+    queue.c)
 target_link_libraries(swd swdlib pthread RBTree)
 target_link_libraries(test_swd_queues http swdlib pthread)
 target_link_libraries(test_assoc swdlib)
 target_link_libraries(test_rbtree RBTree)
+target_link_libraries(test_cfg swdlib RBTree)

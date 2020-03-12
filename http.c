@@ -275,7 +275,7 @@ int create_status_line(char* str, size_t len, http_protocol_version_t p, http_re
 
 /* Requests */
 // parse only Request-Line
-int create_http_request_from_raw_data(http_request_old_t *req, const raw_client_data_t *rd)
+int create_http_request_from_raw_data(http_request_old_t *req, raw_client_data_t *rd)
 {
   if(rd == NULL)
     return -1;

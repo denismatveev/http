@@ -217,7 +217,7 @@ typedef struct __client_data
 
 raw_client_data_t* create_raw_data(void);
 void delete_raw_data(raw_client_data_t*);
-int create_http_request_from_raw_data(http_request_old_t *ht, const raw_client_data_t *rd);
+int create_http_request_from_raw_data(http_request_old_t *ht, raw_client_data_t *rd);
 int get_current_date_string(char* date, size_t n);
 int create_date_header(char* dheader, size_t n);
 int create_server_header(char* server_name, size_t len);
