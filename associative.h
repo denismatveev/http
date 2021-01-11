@@ -25,7 +25,7 @@ void destroy_assoc_array(assoc_t* arr);
 
 // functions
 int add_elem(assoc_t* arr, const char *key, const char* value);
-char* get_value(const assoc_t* arr, const char* key);
+char *get_value(const assoc_t* arr, const char* key);
 int remove_elem(assoc_t* arr, const char* key);
 
 long unsigned int hash_func(const char* k);

@@ -208,9 +208,9 @@ config_t* init_config()
         return NULL;
     }
 
-    if((cfg->general=init_section(General)) == NULL)
+    if((cfg->general=init_section(Section_General)) == NULL)
         return NULL;
-    if((cfg->default_vhost=init_section(Default)) == NULL)
+    if((cfg->default_vhost=init_section(Section_Default)) == NULL)
         return NULL;
     cfg->hosts=NULL;
     return cfg;
@@ -249,7 +249,7 @@ int create_config(config_t **cfg, const char* fname)
 
     if(fseek(f, 0L, SEEK_SET) != 0)
     {
-        WriteLogPError("Seeking the beginning of config file");
+        WriteLogPError("Searching for the beginning of config file");
         return -1;
 
     }
@@ -284,15 +284,15 @@ int create_config(config_t **cfg, const char* fname)
             fclose(f);
             return -1;
         }
-        if(s->type == General)
+        if(s->type == Section_General)
         {
             (*cfg)->general=s;
         }
-        else if(s->type == Default)
+        else if(s->type == Section_Default)
         {
             (*cfg)->default_vhost=s;
         }
-        else if(s->type == Host)
+        else if(s->type == Section_Host)
         {
             n=init_node_s(s);
             strncpy(n->hostname,sitename,256);
@@ -344,13 +344,13 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
         /* General config */
     {
 
-        len=strlen(closing_section_names[General]);
-        *section=init_section(General);
+        len=strlen(closing_section_names[Section_General]);
+        *section=init_section(Section_General);
         while((fgets(str, 256, f)) != NULL)
         {
             replace_trailing(str);
             removeSpaces(str);
-            if((rc=check_balanced_closing_section_name(str, General)) == 0)
+            if((rc=check_balanced_closing_section_name(str, Section_General)) == 0)
             {
                 (*section_counter)--;
                 return 0;
@@ -384,7 +384,7 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
         }
         if((*section_counter != 0))
         {
-            WriteLog("Wrong config in section %s", opening_section_names[General]);
+            WriteLog("Wrong config in section %s", opening_section_names[Section_General]);
             return -1;
         }
     }
@@ -395,13 +395,13 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
     case 1:
         /* Default config */
     {
-        len=strlen(closing_section_names[Default]);
-        *section=init_section(Default);
+        len=strlen(closing_section_names[Section_Default]);
+        *section=init_section(Section_Default);
         while((fgets(str, 256, f)) != NULL)
         {
             removeSpaces(str);
             replace_trailing(str);
-            if((rc=check_balanced_closing_section_name(str, Default)) == 0)
+            if((rc=check_balanced_closing_section_name(str, Section_Default)) == 0)
             {
                 (*section_counter)--;
                 return 0;
@@ -433,7 +433,7 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
         }
         if((*section_counter != 0))
         {
-            WriteLog("Wrong config in section %s", opening_section_names[Default]);
+            WriteLog("Wrong config in section %s", opening_section_names[Section_Default]);
             return -1;
         }
 
@@ -444,13 +444,13 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
         /* Host config */
     {
 
-        len=strlen(closing_section_names[Host]);
-        *section=init_section(Host);
+        len=strlen(closing_section_names[Section_Host]);
+        *section=init_section(Section_Host);
         while((fgets(str, 256, f)) != NULL)
         {
             removeSpaces(str);
             replace_trailing(str);
-            if((rc=check_balanced_closing_section_name(str, Host)) == 0)
+            if((rc=check_balanced_closing_section_name(str, Section_Host)) == 0)
             {
                 (*section_counter)--;
                 return 0;
@@ -485,7 +485,7 @@ int config_read_section(FILE* f, section_t* section, char* sitename, int *sectio
         }
         if((*section_counter != 0))
         {
-            WriteLog("Wrong config in section %s", opening_section_names[Host]);
+            WriteLog("Wrong config in section %s", opening_section_names[Section_Host]);
             return -1;
         }
 
@@ -510,26 +510,26 @@ long get_section_from_cfg(section_t* section, char* sitename, FILE* f)
         replace_trailing(str);
         if((check_if_str_commented_or_blank(str, comment_sign, 256)) == 1)
             continue;
-        if(!(strncmp(str,opening_section_names[General],strlen(opening_section_names[General]))))
+        if(!(strncmp(str,opening_section_names[Section_General],strlen(opening_section_names[Section_General]))))
         {
             section_counter++;
-            if((r=config_read_section(f, section, sitename, &section_counter, General)) == 0)
+            if((r=config_read_section(f, section, sitename, &section_counter, Section_General)) == 0)
                 return ftell(f);
             else
                 return -1;
         }
-        else if(!(strncmp(str,opening_section_names[Default], strlen(opening_section_names[Default]))))
+        else if(!(strncmp(str,opening_section_names[Section_Default], strlen(opening_section_names[Section_Default]))))
         {
             section_counter++;
-            if((r=config_read_section(f, section, sitename, &section_counter, Default)) == 0)
+            if((r=config_read_section(f, section, sitename, &section_counter, Section_Default)) == 0)
                 return ftell(f);
             else
                 return -1;
         }
-        else if(!(strncmp(str,opening_section_names[Host], strlen(opening_section_names[Host]))))
+        else if(!(strncmp(str,opening_section_names[Section_Host], strlen(opening_section_names[Section_Host]))))
         {
             section_counter++;
-            if((r=config_read_section(f, section, sitename, &section_counter, Host)) == 0)
+            if((r=config_read_section(f, section, sitename, &section_counter, Section_Host)) == 0)
                 return ftell(f);
             else
                 return -1;

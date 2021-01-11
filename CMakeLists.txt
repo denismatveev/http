@@ -16,17 +16,14 @@ add_library(swdlib
     config.c
     queue.c
     )
-add_library(parse_config
-    parse_config.c
-    common.c
-    )
 add_library(RBTree
-    RBTree.c)
+    RBTree.c
+    queue.c
+    )
 add_library(queues
     queue.c)
 add_executable(swd
     main.c
-    parse_config.c
     )
 
 add_executable(test_swd_queues

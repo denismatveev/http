@@ -18,9 +18,9 @@ extern char *closing_section_names[];
 
 typedef enum section_type
 {
-    General=0,// General section contains info such as port, timeout, workers,listen interface etc
-    Default=1,// this config is used if any of 'Host' config is not suitable
-    Host=2 // Host config describes virtual host
+    Section_General=0,// General section contains info such as port, timeout, workers,listen interface etc
+    Section_Default=1,// this config is used if any of 'Host' config is not suitable
+    Section_Host=2 // Host config describes virtual host
 }section_type_t;
 
 typedef struct __section
@@ -84,11 +84,10 @@ void destroy_section(section_t t);
 int create_config(config_t **cfg, const char* fname);
 config_t* init_config(void);
 void destroy_config(config_t*);
-int parse_configfile(config_t *cfg, const char* fname);
 int parse_str(char* wholestr, char *key, char *value, char comment, char delim, char ending);
 long get_section_from_cfg(section_t *section, char *sitename, FILE* f);
 int config_read_section(FILE* f, section_t* section, char* sitename, int *section_counter, section_type_t s);
-int check_config(config_t* cfg);
+int check_config(config_t* cfg); // not implemented yet
 section_t search_for_host(const config_t *c, const char* host);
 void print_cfg(config_t* cfg);
 

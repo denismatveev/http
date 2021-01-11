@@ -1,4 +1,3 @@
-#include"config.h"
 #include"queue.h"
 
 #pragma GCC diagnostic ignored "-Wuninitialized"
@@ -17,7 +16,7 @@ node_t* init_node(const char *name, const char* rootdir, const char* index)
     if(strlen(name) == 0)
         return NULL;
 
-    s=init_section(Host);
+    s=init_section(Section_Host);
 
     if((node=(node_t*)malloc(sizeof(node_t))) == NULL)
         return NULL;

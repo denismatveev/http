@@ -1,7 +1,7 @@
 #ifndef IOWORKER_H
 #define IOWORKER_H
 #include "jobs_queue.h"
-#include "parse_config.h"
+#include "config.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

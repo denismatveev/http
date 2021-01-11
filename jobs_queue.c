@@ -98,7 +98,7 @@ int push_job(jobs_queue_t *q, const job_t *j)
       pthread_mutex_unlock(&q->lock);
       return 0;
     }
-  else if(q->high_bound == q->capacity) //queue is full
+  else if(q->high_bound == q->capacity) //queue is full, doing reallocation
     {
       ptr=(job_t**)realloc(q->array,(q->capacity)*sizeof(job_t*) + QUEUE_SIZE_RESERVE*sizeof(job_t*));
 
