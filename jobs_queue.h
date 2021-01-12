@@ -36,7 +36,7 @@ void destroy_job(job_t*);
 jobs_queue_t* init_jobs_queue(const char *queuename);
 int close_jobs_queue(jobs_queue_t*);
 
-int push_job(jobs_queue_t*, const job_t *);
+int push_job(jobs_queue_t*, job_t *);
 int pop_job(jobs_queue_t *, job_t**);
 
 #endif
