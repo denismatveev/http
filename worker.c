@@ -182,7 +182,7 @@ int create_job_with_raw_data_and_place_into_input_queue(int client_sock)
 // take job from one queue(input_queue), do something and put into another(output_queue)
 void* process_jobs(void* args)
 {
-    //  struct sending_thread_args *targs = args;
+    //  struct sending_thread_args *targs = args;// you can pass args via this struct
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     job_t *job=NULL;
