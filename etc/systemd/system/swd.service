@@ -1,0 +1,14 @@
+[Unit]
+Description="Simple web server"
+After=network.target
+
+[Service]
+Type=forking
+User=root
+Group=root
+ExecStart=/usr/bin/swd -c /etc/swd/swd.cfg
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
