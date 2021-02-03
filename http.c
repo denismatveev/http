@@ -1,566 +1,865 @@
 #include "http.h"
 #include <locale.h>
 #include <time.h>
-#define MAX_EVENTS 10
-#define servername "SmallWebServer"
-
+// Based on RFC 2616
+// http://tools.ietf.org/html/rfc2616
 /* General */
 
 char *http_method[] = {
-  "GET",
-  "POST",
-  "HEAD",
-  "PUT",
-  "DELETE",
-  "CONNECT",
-  "OPTIONS",
-  "TRACE",
-  "PATCH",
-  NULL
+    "GET",
+    "POST",
+    "HEAD",
+    "PUT",
+    "DELETE",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "PATCH",
+    NULL
 };
 char *http_protocol_version[] = {
-  "HTTP/1.0",
-  "HTTP/1.1",
-  "HTTP/2",
-  NULL
+    "HTTP/1.0",
+    "HTTP/1.1",
+    "HTTP/2",
+    NULL
 };
 char *reason_code_name[] = {
-  "Bad Request",
-  "Not Found",
-  "OK",
-  "Entity Too Large",
-  "Internal Error",
-  "Not Implemented"
+    "400 Bad Request",
+    "404 Not Found",
+    "200 OK",
+    "413 Entity Too Large",
+    "500 Internal Error",
+    "501 Not Implemented",
+    NULL
 };
 char *content_type[] = {
-  "Content-Type: text/html",
-  "Content-Type: image/jpg",
-  "Content-Type: application/pdf",
-  "Content-Type: image/png",
-  "Content-Type: video/mpeg",
-  "Content-Type: text/css"
+    "text/html",
+    "image/jpg",
+    "application/pdf",
+    "image/png",
+    "video/mpeg",
+    "text/css",
+    NULL
 };
 char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
+// the following is used in both request and response
 char* general_header[] = {
-  "Cache-Control",
-  "Connection",
-  "Date",
-  "Pragma",
-  "Trailer",
-  "Transfer-Encoding",
-  "Upgrade",
-  "Via",
-  "Warning",
-  NULL
+    "Cache-Control:",
+    "Connection:",
+    "Date:",
+    "Pragma:",
+    "Trailer:",
+    "Transfer-Encoding:",
+    "Upgrade:",
+    "Via:",
+    "Warning:",
+    NULL
 };
+// the following is used in response and therefore contains colon and space
 char* response_header[] = {
-  "Accept-Ranges",
-  "Age",
-  "ETag",
-  "Location",
-  "Proxy-Authenticate",
-  "Retry-After",
-  "Server",
-  "Vary",
-  "WWW-Authenticate"
+    "Accept-Ranges: ",
+    "Age: ",
+    "ETag: ",
+    "Location: ",
+    "Proxy-Authenticate: ",
+    "Retry-After: ",
+    "Server: ",
+    "Vary: ",
+    "WWW-Authenticate: ",
+    NULL
 };
-
+// the following is used in both request and response
 char* entity_header[] = {
 
-  "Allow",
-  "Content-Encoding",
-  "Content-Language",
-  "Content-Length",
-  "Content-Location",
-  "Content-MD5",
-  "Content-Range",
-  "Content-Type",
-  "Expires",
-  "Last-Modified"
+    "Allow:",
+    "Content-Encoding:",
+    "Content-Language:",
+    "Content-Length:",
+    "Content-Location:",
+    "Content-MD5:",
+    "Content-Range:",
+    "Content-Type:",
+    "Expires:",
+    "Last-Modified:",
+    NULL
 };
 
 char *request_header[] = {
-  "Accept",
-  "Accept-Charset",
-  "Accept-Encoding",
-  "Accept-Language",
-  "Authorization",
-  "Expect",
-  "From",
-  "Host",
-  "If-Match",
-  "If-Modified-Since",
-  "If-None-Match",
-  "If-Range",
-  "If-Unmodified-Since",
-  "Max-Forwards",
-  "Proxy-Authorization",
-  "Range",
-  "Referer",
-  "TE",
-  "User-Agent",
+    "Accept: ",
+    "Accept-Charset:",
+    "Accept-Encoding:",
+    "Accept-Language:",
+    "Authorization:",
+    "Expect:",
+    "From:",
+    "Host:",
+    "If-Match: ",
+    "If-Modified-Since: ",
+    "If-None-Match: ",
+    "If-Range:",
+    "If-Unmodified-Since:",
+    "Max-Forwards:",
+    "Proxy-Authorization:",
+    "Range:",
+    "Referer:",
+    "TE:",
+    "User-Agent:",
+    NULL
 };
 
 http_method_t find_http_method(const char *sval)
 {
-  http_method_t result = GET; /* value corresponding to etable[0] */
-  int i = 0;
-  for (i = 0; http_method[i] != NULL; ++i, ++result)
-    if (!(strncmp(sval, http_method[i], 16)))
-      return result;
-  return INVALID_METHOD;
+    http_method_t result = GET; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; http_method[i] != NULL; ++i, ++result)
+        if (!(strncmp(sval, http_method[i], 16)))
+            return result;
+    return INVALID_METHOD;
 }
 http_protocol_version_t find_http_protocol_version(const char *sval)
 {
-  http_protocol_version_t result = HTTP10; /* value corresponding to etable[0] */
-  int i = 0;
-  for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
-    if (!(strncmp(sval, http_protocol_version[i], 16)))
-      return result;
-  return INVALID_PROTO;
+    http_protocol_version_t result = HTTP10; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
+        if (!(strncmp(sval, http_protocol_version[i], 16)))
+            return result;
+    return INVALID_PROTO;
 }
 
 // convert content_type into string
+// It is for supported MIMEs, you must ajust CONTENT_TYPE_MAX_LENGTH for new implemented types
 
-int content_type_to_str(char *str, size_t len, http_content_type_t ct)
+int content_type_to_str(char *str, http_content_type_t ct)
 {
-  size_t content_type_length;
-  switch (ct)
+    size_t len = CONTENT_TYPE_MAX_LENGTH;
+    size_t content_type_length;
+    switch (ct)
     {
     case text_html:
-      content_type_length=strlen(content_type[0]);
-      if(len <= content_type_length)
-        return 1;
-      strcpy(str,content_type[0]);
-      break;
+        content_type_length=strlen(content_type[0]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[0]);
+        break;
     case image_jpg:
-      content_type_length=strlen(content_type[1]);
-      if(len <= content_type_length)
-        return 2;
-      strcpy(str,content_type[1]);
-      break;
+        content_type_length=strlen(content_type[1]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[1]);
+        break;
     case application_pdf:
-      content_type_length=strlen(content_type[2]);
-      if(len <= content_type_length)
-        return 3;
-      strcpy(str,content_type[2]);
-      break;
+        content_type_length=strlen(content_type[2]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[2]);
+        break;
     case image_png:
-      content_type_length=strlen(content_type[3]);
-      if(len <= content_type_length)
-        return 4;
-      strcpy(str,content_type[3]);
-      break;
+        content_type_length=strlen(content_type[3]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[3]);
+        break;
     case video_mpeg:
-      content_type_length=strlen(content_type[4]);
-      if(len <= content_type_length)
-        return 5;
-      strcpy(str,content_type[4]);
-      break;
+        content_type_length=strlen(content_type[4]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[4]);
+        break;
     case text_css:
-      content_type_length=strlen(content_type[5]);
-      if(len <= content_type_length)
-        return 6;
-      strcpy(str,content_type[5]);
-      break;
-    case INVALID_MIME:
-      return -1;
+        content_type_length=strlen(content_type[5]);
+        if(len <= content_type_length)
+            return 1;
+        strcpy(str,content_type[5]);
+        break;
+    default:
+        return 1;
     }
-  return 0;
+    return 0;
 }
-
-int http_ptorocol_code_to_str(char *str, size_t len, http_protocol_version_t rt)
+// converts http code enumeration into c string
+int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt)
 {
-  size_t protocol_size;
-  switch(rt)
+    size_t len = HTTP_PROTOCOL_VERSION_MAX_LENGTH;
+    size_t protocol_size;
+    switch(rt)
     {
     case HTTP10:
-      protocol_size=strlen(http_protocol_version[0]);
-      if(len <= protocol_size)
-        return 1;
-      strcpy(str, http_protocol_version[0]);
-      break;
+        protocol_size=strlen(http_protocol_version[0]);
+        if(len <= protocol_size)
+            return 1;
+        strcpy(str, http_protocol_version[0]);
+        break;
     case HTTP11:
-      protocol_size=strlen(http_protocol_version[0]);
-      if(len <= protocol_size)
-        return 1;
-      strcpy(str, http_protocol_version[0]);
-      break;
+        protocol_size=strlen(http_protocol_version[0]);
+        if(len <= protocol_size)
+            return 1;
+        strcpy(str, http_protocol_version[0]);
+        break;
     case HTTP2:
-      protocol_size=strlen(http_protocol_version[1]);
-      if(len <= protocol_size)
-        return 1;
-      strcpy(str, http_protocol_version[1]);
-      break;
+        protocol_size=strlen(http_protocol_version[1]);
+        if(len <= protocol_size)
+            return 1;
+        strcpy(str, http_protocol_version[1]);
+        break;
     default :
-      return 0;
+        return 1;
     }
-  return 0;
+    return 0;
 }
 
-// convert reason code into value, ie 404 -> Not Found
+// convert reason code into string, ie 404 -> Not Found
+// maximum length is 17 for supported codes, you must ajust if implemented new
 
-int reason_code_to_str(char *str, size_t len, http_reason_code_t rt)
+int reason_code_to_str(char *str, http_reason_code_t rt)
 {
 
-  size_t reason_code_size;
-
-  switch(rt)
+    switch(rt)
     {
     case Bad_Request:
-      reason_code_size=strlen(reason_code_name[0]);
-      if(len <= reason_code_size)
-        return 1;
-      strcpy(str, reason_code_name[0]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[0]))
+            return 1;
+        strcpy(str, reason_code_name[0]);
+        break;
     case Not_found:
-      reason_code_size=strlen(reason_code_name[1]);
-      if(len <= reason_code_size)
-        return 2;
-      strcpy(str,reason_code_name[1]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[1]))
+            return 1;
+        strcpy(str,reason_code_name[1]);
+        break;
     case Entity_Too_Large:
-      reason_code_size=strlen(reason_code_name[2]);
-      if(len <= reason_code_size)
-        return 2;
-      strcpy(str,reason_code_name[2]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[2]))
+            return 1;
+        strcpy(str,reason_code_name[2]);
+        break;
     case OK:
-      reason_code_size=strlen(reason_code_name[3]);
-      if(len <= reason_code_size)
-        return 3;
-      strcpy(str,reason_code_name[3]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[3]))
+            return 1;
+        strcpy(str,reason_code_name[3]);
+        break;
     case Internal_Error:
-      reason_code_size=strlen(reason_code_name[4]);
-      if(len <= reason_code_size)
-        return 4;
-      strcpy(str,reason_code_name[4]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[4]))
+            return 1;
+        strcpy(str,reason_code_name[4]);
+        break;
     case Not_implemented:
-      reason_code_size=strlen(reason_code_name[5]);
-      if(len <= reason_code_size)
-        return 5;
-      strcpy(str,reason_code_name[5]);
-      break;
+        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[5]))
+            return 1;
+        strcpy(str,reason_code_name[5]);
+        break;
     }
-  return 0;
+    return 0;
+}
+http_general_header_t find_http_general_header(const char *gh)
+{
+    http_general_header_t result = Cache_Control; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; general_header[i] != NULL; ++i, ++result)
+        if (!(strncmp(gh, general_header[i], 16)))
+            return result;
+    return INVALID_GENERAL_HEADER;
 }
 
-//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
-int create_status_line(char* str, size_t len, http_protocol_version_t p, http_reason_code_t r)
+http_entity_header_t find_http_entity_header(const char *eh)
 {
-  char reason_str[64]={0};
-  char reason_code_str[4]={0};
+    http_entity_header_t result = Allow; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; entity_header[i] != NULL; ++i, ++result)
+        if (!(strncmp(eh, entity_header[i], 16)))
+            return result;
+    return INVALID_ENTITY_HEADER;
+}
+http_response_header_t find_http_response_header(const char *resph)
+{
+    http_response_header_t result = Accept_Ranges; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; response_header[i] != NULL; ++i, ++result)
+        if (!(strncmp(resph, response_header[i], 16)))
+            return result;
+    return INVALID_RESPONSE_HEADER;
+}
 
-  //  convert from code to string, i.e. 501 -> "501\0"
-  if((int_to_str(reason_code_str, (int)r)) == -1)
-    return -1;
+http_request_header_t find_http_request_header(const char *reqh)
+{
+    http_request_header_t result = Accept; /* value corresponding to etable[0] */
+    int i = 0;
+    for (i = 0; request_header[i] != NULL; ++i, ++result)
+        if (!(strncmp(reqh, request_header[i], 16)))
+            return result;
+    return INVALID_REQUEST_HEADER;
+}
 
-  // convert int code into name of reason, ie. 501 -> "Not Implemented\0"
-  if((reason_code_to_str(reason_str, 64, r)))
-    return -2;
+// function must pass args char* str buffer not more that HTTP_HEADER_NAME_MAX_LEN
+int http_general_header_to_str(http_general_header_t h, char* str)
+{
+    switch (h)
+    {
+    case Cache_Control:
+        if(strlen(general_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[0]);
+        break;
+    case Connection:
+        if(strlen(general_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[1]);
+        break;
+    case Date:
+        if(strlen(general_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[2]);
+        break;
+    case Pragma:
+        if(strlen(general_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[3]);
+        break;
+    case Trailer:
+        if(strlen(general_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[4]);
+        break;
+    case Transfer_Encoding:
+        if(strlen(general_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[5]);
+        break;
+    case Upgrade:
+        if(strlen(general_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[6]);
+        break;
+    case Via:
+        if(strlen(general_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[7]);
+        break;
+    case Warning:
+        if(strlen(general_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, general_header[8]);
+        break;
+    default:
+        return 1;
+    }
+    return 0;
+}
 
-  //check if str len has enough size to write
-  http_ptorocol_code_to_str(str,len,p);
-  if((strlen(reason_str) + strlen(reason_code_str))  + 3 > len )
-    return -3;
-  strcat(str," ");// adding space separator
-  strcat(str, reason_code_str); //  writing code reason
-  strcat(str," "); // adding space
-  strcat(str, reason_str);
+int http_request_header_to_str(http_request_header_t h, char* str)
+{
+    switch (h)
+    {
+    case Accept:
+        if(strlen(request_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[0]);
+        break;
+    case Accept_Charset:
+        if(strlen(request_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[1]);
+        break;
+    case Accept_Encoding:
+        if(strlen(request_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[2]);
+        break;
+    case Accept_Language:
+        if(strlen(request_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[3]);
+        break;
+    case Authorization:
+        if(strlen(request_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[4]);
+        break;
+    case Expect:
+        if(strlen(request_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[5]);
+        break;
+    case From:
+        if(strlen(request_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[6]);
+        break;
+    case Host:
+        if(strlen(request_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[7]);
+        break;
+    case If_Match:
+        if(strlen(request_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[8]);
+        break;
+    case If_Modified_Since:
+        if(strlen(request_header[9]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[9]);
+        break;
+    case If_None_Match:
+        if(strlen(request_header[10]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[10]);
+        break;
+    case If_Range:
+        if(strlen(request_header[11]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[11]);
+        break;
+    case If_Unmodified_Since:
+        if(strlen(request_header[12]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[12]);
+        break;
+    case Max_Forwards:
+        if(strlen(request_header[13]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[13]);
+        break;
+    case Proxy_Authorization:
+        if(strlen(request_header[14]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[14]);
+        break;
+    case Range:
+        if(strlen(request_header[15]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[15]);
+        break;
+    case Referer:
+        if(strlen(request_header[16]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[16]);
+        break;
+    case TE:
+        if(strlen(request_header[17]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[17]);
+        break;
+    case User_Agent:
+        if(strlen(request_header[18]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, request_header[18]);
+        break;
+    default:
+        return 1;
 
-  return 0;
+    }
+
+    return 0;
+}
+
+int http_entity_header_to_str(http_entity_header_t h, char* str)
+{
+    switch (h)
+    {
+    case     Allow:
+        if(strlen(entity_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[0]);
+        break;
+    case Content_Encoding:
+        if(strlen(entity_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[1]);
+        break;
+    case Content_Language:
+        if(strlen(entity_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[2]);
+        break;
+    case Content_Length:
+        if(strlen(entity_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[3]);
+        break;
+    case Content_Location:
+        if(strlen(entity_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[4]);
+        break;
+    case Content_MD5:
+        if(strlen(entity_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[5]);
+        break;
+    case Content_Range:
+        if(strlen(entity_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[6]);
+        break;
+    case Content_Type:
+        if(strlen(entity_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[7]);
+        break;
+    case Expires:
+        if(strlen(entity_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[8]);
+        break;
+    case Last_Modified:
+        if(strlen(entity_header[9]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, entity_header[9]);
+        break;
+
+    default:
+        return 1;
+
+    }
+
+    return 0;
+
+}
+int http_response_header_to_str(http_response_header_t h, char* str)
+{
+    switch(h)
+    {
+    case Accept_Ranges:
+        if(strlen(response_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[0]);
+        break;
+    case  Age:
+        if(strlen(response_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[1]);
+        break;
+    case   ETag:
+        if(strlen(response_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[2]);
+        break;
+    case Location:
+        if(strlen(response_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[3]);
+        break;
+    case Proxy_Authenticate:
+        if(strlen(response_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[4]);
+        break;
+    case Retry_After:
+        if(strlen(response_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[5]);
+        break;
+    case Server:
+        if(strlen(response_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[6]);
+        break;
+    case Vary:
+        if(strlen(response_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[7]);
+        break;
+    case  WWW_Authenticate:
+        if(strlen(response_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
+            return 1;
+        strcpy(str, response_header[8]);
+        break;
+
+    default:
+        return 1;
+    }
+    return 0;
+}
+http_header_node_t* init_http_request_header_node(const char http_header_name[HTTP_HEADER_NAME_MAX_LEN], const char http_header_value[HTTP_HEADER_VALUE_MAX_LEN])
+{
+    http_header_node_t* t;
+    char http_header[HTTP_HEADER_NAME_MAX_LEN];
+
+    strncpy(http_header,http_header_name, HTTP_HEADER_NAME_MAX_LEN);
+
+    if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
+        return NULL;
+    strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+    t->next = NULL;
+
+    if((find_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
+        t->type=http_general_header;
+    else if(find_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
+        t->type=http_entity_header;
+    else if(find_http_request_header(http_header) != INVALID_REQUEST_HEADER)
+        t->type=http_request_header;
+    else return NULL;
+
+    return t;
+}
+http_header_node_t* init_http_response_header_node(const char http_header_name[HTTP_HEADER_NAME_MAX_LEN], const char http_header_value[HTTP_HEADER_VALUE_MAX_LEN])
+{
+    http_header_node_t* t;
+    char http_header[HTTP_HEADER_NAME_MAX_LEN];
+
+    strncpy(http_header,http_header_name, HTTP_HEADER_NAME_MAX_LEN);
+
+    if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
+        return NULL;
+    strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+    t->next = NULL;
+
+    if((find_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
+        t->type=http_general_header;
+    else if(find_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
+        t->type=http_entity_header;
+    else if(find_http_response_header(http_header) != INVALID_REQUEST_HEADER)
+        t->type=http_request_header;
+    else return NULL;
+
+    return t;
+}
+void destroy_http_headers_node(http_header_node_t* header_node)
+{
+    free(header_node);
+
+    return;
+}
+
+http_headers_list_t* init_http_headers_list(const http_header_node_t* first_node)
+{
+    http_headers_list_t* hl;
+    if((hl=(http_headers_list_t*)malloc(sizeof(http_header_node_t))) == NULL)
+        return NULL;
+    hl->first=first_node;
+    hl->limit=64;
+    hl->capacity=0;
+
+    return hl;
+}
+void destroy_http_headers_list(http_headers_list_t* hl)
+{
+    http_header_node_t* current=hl->first;
+    http_header_node_t* tmp;
+
+    while(current->next != NULL)
+    {
+        tmp=current->next;
+        destroy_http_headers_node(current);
+        current=tmp;
+    }
+    destroy_http_headers_node(current);
+
+    free(hl);
+    return;
+}
+
+int add_http_header_to_list(http_headers_list_t* list, const http_header_node_t* header)
+{
+    http_header_node_t* current;
+
+    current=list->first;
+
+    while(current->next != NULL)
+        current=current->next;
+
+    current->next=header;
+
+    return 0;
+}
+
+int create_http_request(http_request_t* request, const http_headers_list_t* list, http_request_line_t req_line)
+{
+    request->headers=list;
+    request->req_line.method=req_line.method;
+    request->req_line.http_version=req_line.http_version;
+    strncpy(request->req_line.request_URI, req_line.request_URI, REQUEST_URI_STRING_LENGTH);
+
+    return 0;
+}
+
+int create_http_response(http_response_t *response, http_headers_list_t* list, http_status_line_t status)
+{
+
+    response->sl=status;
+    response->headers=list;
+
+    return 0;
+}
+int find_header_name_value_by_type(const http_header_node_t* node, char name[HTTP_HEADER_NAME_MAX_LEN], char value[HTTP_HEADER_VALUE_MAX_LEN] )
+{
+
+    switch (node->type)
+    {
+    case http_entity_header:
+        http_entity_header_to_str(node->http_header, name);
+        strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+        break;
+    case http_general_header:
+        http_general_header_to_str(node->http_header, name);
+        strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+        break;
+    case http_request_header:
+        http_request_header_to_str(node->http_header, name);
+        strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+        break;
+    case http_response_header:
+        http_response_header_to_str(node->http_header,name);
+        break;
+    default:
+        return 1;
+    }
+
+    return 0;
+}
+//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
+int create_status_line(char* str, http_protocol_version_t p, http_reason_code_t r)
+{
+    char reason_str[REASON_CODE_NAME_MAX_LENGTH]={0};
+    char reason_code_str[4]={0};
+
+    // convert int code into name of reason, ie. 501 -> "501 Not Implemented\0"
+    if((reason_code_to_str(reason_str, r)))
+        return -1;
+
+    http_ptorocol_code_to_str(str,p);
+    strcat(str, SP);// adding space separator
+    strcat(str, reason_code_str); //  writing code reason
+    strcat(str, SP); // adding space
+    strcat(str, reason_str);
+
+    return 0;
 }
 
 /* Requests */
-// parse only Request-Line
-int create_http_request_from_raw_data(http_request_old_t *req, raw_client_data_t *rd)
+
+int parse_raw_data(http_request_t *req, raw_client_data_t *rd)
 {
-  if(rd == NULL)
-    return -1;
-  const char *delim = " \r\n";
-  char *tok;
-  unsigned int i = 0;
-  char tmpparam[PARAMS_STRING_LENGTH];
+    if(rd == NULL)
+        return -1;
+    char *tok;
+    char header[HTTP_HEADER_NAME_MAX_LEN], value[HTTP_HEADER_VALUE_MAX_LEN];
 
+    char** saveptr=NULL;
+    char request_line[REQUEST_LINE_LENGTH];
 
-  // char *tmp =strdup(rd->initial_data);
-  // tok = strtok(tmp,delim);
-  tok = strtok(rd->initial_data, delim); // search for Request-Line
-  while(tok != NULL && i < 4)
+    //strtok_r is MT-Safe function
+    if((tok = strtok_r(rd->initial_data, CRLF, saveptr)) == NULL)// search for Request-Line
+        return 1;
+
+    if (strlen(tok) >= REQUEST_LINE_LENGTH)
+        return 1;
+    strncpy(request_line, tok, REQUEST_LINE_LENGTH);
+
+    if((parse_request_line(&(req->req_line), request_line)) != 0)
+        return 1;
+
+    while(tok != NULL)
     {
-      switch(i)
-        {
-        case 0:
-          // search for request method
-          if((req->method=find_http_method(tok)) == -1)
-            {
-              // free(tmp);
-              return -1;
-            }
-          break;
-        case 1:
-          // search for params
-          if(tok[0] == '/')
-            {
-              strncpy(tmpparam,tok+1,PARAMS_STRING_LENGTH);
-              strncpy(req->params, tmpparam, PARAMS_STRING_LENGTH);
-            }
-          break;
-        case 2:
-          // search for http protocol
-          if((req->http_proto=find_http_protocol_version(tok)) == -1)
-            {
-              // free(tmp);
-              return -2;
-            }
-          break;
-        case 3:
-          {
-            WriteLog("case 3: tok=%s", tok);
-            if((strncmp(tok, "Host:", 5)) == 0)
-              strncpy(req->host,tok+5,8192);
-          }
-          break;
-        }
-      i++;
-      tok = strtok(NULL, delim);
+        tok = strtok_r(NULL, CRLF, saveptr);
+        if((parse_http_header_line(tok, header, value)) != 0)
+            return 1;
     }
-  if( i != 4 )
-    return -3;
-  // free(tmp);
-  WriteLog("Host:%s",req->host);
-  return 0;
+
+    return 0;
 }
-
-http_request_old_t* create_request()
+int parse_http_header_line(char* header_line, char header[HTTP_HEADER_NAME_MAX_LEN], char value[HTTP_HEADER_VALUE_MAX_LEN])
 {
-  http_request_old_t* htp;
+    char * tok;
+    char** saveptr=NULL;
 
-  if((htp = (http_request_old_t*)malloc(sizeof(http_request_old_t))) == NULL) // I don't use memset() to zeroing or calloc to improve performance. Instead of this I decided to add 0 to end of data
-    return NULL;
 
-  return htp;
+
+
+    return 0;
 }
-
-void delete_http_request(http_request_old_t* ptr)
+int parse_request_line(http_request_line_t* rl, const char* rc)
 {
-  if(ptr == NULL)
-    {
-      WriteLog("http request cannot be deleted as it doesn't exist");
-      return;
-    }
-  free(ptr);
+
+
+    return 0;
 }
 
 
-raw_client_data_t* create_raw_data()
-{
-  raw_client_data_t* rd;
-  if((rd = (raw_client_data_t*)malloc(sizeof(raw_client_data_t))) == NULL)
-    return NULL;
 
-  return rd;
+int get_current_date_string(char*date)
+{
+
+    time_t t = time(NULL);
+    struct tm *tm = gmtime(&t);// probably localtime() instead of gmtime()
+
+    strftime(date, 128, "%c", tm);
+
+    return 0;
 }
 
-void delete_raw_data(raw_client_data_t* rd)
+int create_date_header(char* dheader)
 {
-  if(rd == NULL)
-    {
-      WriteLog("Raw client data cannot be deleted as they don't exist");
-      return;
-    }
-  free(rd);
-}
-
-int get_current_date_string(char* date, size_t n)
-{
-
-  time_t t = time(NULL);
-  struct tm *tm = gmtime(&t);
-
-  strftime(date, n, "%c", tm);
-
-  return 0;
-}
-
-int create_date_header(char* dheader, size_t n)
-{
-  //temporary constant date
-  char date[128]={0};
-  strncpy(dheader, "Date: ", 6);
-  //strncpy(dheader, "Date: Fri Dec  7 15:37:41 2018", 48);
-  get_current_date_string(date, 128);
-  // return 0;
-  return strncat(dheader, date, n) ? 0 : 1;
+    //temporary constant date
+    char date[128]={0};
+    strncpy(dheader, "Date: ", 6);
+    //strncpy(dheader, "Date: Fri Dec  7 15:37:41 2018", 48);
+    get_current_date_string(date);
+    // return 0;
+    return strncat(dheader, date, 128) ? 0 : 1;
 }
 
 int create_header_name_of_server(char* server_name, size_t len)
 {
-  strncpy(server_name, "Server: ", 8);
-  strncat(server_name, servername, len);
-  return 0;
+    strncpy(server_name, "Server: ", 8);
+    strncat(server_name, servername, len);
+    return 0;
 }
 
-http_response_old_t* create_http_response(void)
-{
-  http_response_old_t* resp;
-  if((resp = (http_response_old_t*)malloc(sizeof(http_response_old_t))) == NULL)
-    return NULL;
 
-  return resp;
-}
 
-void fill_http_response(http_response_old_t *resp, const char* status_line)
+int create_error_response(http_response_t* res, const http_reason_code_t code, char *error_file)
 {
 
-  char date[128]={0}, server[128]={0};
-
-  create_date_header(date, 128);
-  create_header_name_of_server(server, 128);
-  strcpy(resp->header.status_line, status_line);
-  strcpy(resp->header.content_length,"Content-Length=0");// filling this header placed in further in convert_content_length()
-  strcpy(resp->header.content_type, "Content-Type: text/html"); // default MIME type
-  strncpy(resp->header.server, server, strlen(server)+1);
-  strncpy(resp->header.date, date, strlen(date));
-  resp->message_body=0;//must be file descriptor, initially equal zero
-
-}
-void delete_http_response(http_response_old_t *hp)
-{
-  if(hp == NULL)
-    {
-      WriteLog("http response cannot be deleted as it doesn't exist");
-      return;
-    }
-  free(hp);
+    return 0;
 }
 
-int create_200_response(http_response_old_t* res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, OK)) == -1)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
 
 
-}
-int create_404_response(http_response_old_t *res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, Not_found)) == -1)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
-}
-int create_413_response(http_response_old_t *res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, Entity_Too_Large)) == -1)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
-}
-int create_500_response(http_response_old_t *res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, Internal_Error)) == -1)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
-}
-
-int create_501_response(http_response_old_t * res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  ret = create_status_line(status_line, 128, req->http_proto, Not_implemented);
-  if(ret < 0)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
-}
-
-int create_400_response(http_response_old_t *res, const http_request_old_t* req)
-{
-  char status_line[128]={0};
-  int ret;
-  if((ret = create_status_line(status_line, 128, req->http_proto, Bad_Request)) == -1)
-    return -1;
-  fill_http_response(res, status_line);
-
-  return 0;
-}
-
-size_t create_serialized_http_header(char* headers, const http_response_header_old_t *rs, size_t len)
-{
-  size_t ret;
-  ret=(size_t)snprintf(headers, len,"%s\n%s\n%s\n%s\n%s\r\n\r\n",rs->status_line, rs->server, rs->date, rs->content_type, rs->content_length);
-
-  return ret;
-}
 long get_file_size(int fd)
 {
-  long size, current_pos;
+    long size, current_pos;
 
-  current_pos =lseek(fd, 0L, SEEK_CUR); //remember current pos
-  size=lseek(fd, 0L, SEEK_END); // file size
-  lseek(fd,current_pos, SEEK_SET); // return to initial pos
+    current_pos =lseek(fd, 0L, SEEK_CUR); //remember current pos
+    size=lseek(fd, 0L, SEEK_END); // file size
+    lseek(fd,current_pos, SEEK_SET); // return to initial pos
 
-  return size;
+    return size;
 
 }
 
-int convert_Content_Length(http_response_header_old_t* header)
-{
-  char num[22]={0};//for 64 bin 2^64(long) has 21 symbols
-  strncpy(header->content_length,"Content-Length: ",16);
-  long_to_str(num,header->content_length_num);
-  strncat(header->content_length, num, 22);
-  return 0;
-}
+
+
 // converts file extension into mime type
+// max file extension length is 5
 http_content_type_t get_file_MIME_type(const char* filename)
 {
-  char *fileExtension;
-  if ((fileExtension = strrchr(filename, '.')) == NULL)
+    char *fileExtension;
+    if ((fileExtension = strrchr(filename, '.')) == NULL)
+        return INVALID_MIME;
+
+    http_content_type_t mime = text_html;
+
+    for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
+        if (!(strncmp(fileExtension, file_ext[i], 5)))
+            return mime;
     return INVALID_MIME;
-
-  http_content_type_t mime = text_html;
-
-  for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
-    if (!(strncmp(fileExtension, file_ext[i], 5)))
-      return mime;
-  return INVALID_MIME;
 
 }
 
-int get_file_MIME_type_in_str(char* content_type, size_t len, const char* filename)
+int convert_file_MIME_type_in_str(char* content_type, const char* filename)
 {
-  http_content_type_t ct;
+    http_content_type_t ct;
 
-  if((ct = get_file_MIME_type(filename)) == INVALID_MIME)
+    if((ct = get_file_MIME_type(filename)) == INVALID_MIME)
     {
-      WriteLog("Invalid MIME type, unsupported file extension");
-      return -1;
+        WriteLog("Invalid MIME type, unsupported file extension");
+        return -1;
     }
 
-  if((content_type_to_str(content_type, len, ct)) != 0)
+    if((content_type_to_str(content_type, ct)) != 0)
     {
-      WriteLog("Insufficient buffer length for writing Content Type, content_type=%d", ct);
-      return -1;
+        WriteLog("Insufficient buffer length for writing Content Type, content_type=%d", ct);
+        return -1;
     }
 
-  return 0;
+    return 0;
 }

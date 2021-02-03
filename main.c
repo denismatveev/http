@@ -13,7 +13,8 @@ int main(int argc, char** argv)
     pid_t pid;
     int c;
     sigset_t set;
-
+//TODO create help_message
+//    char* help_message="";
 
 
     while ((c = getopt (argc, argv, ":c:")) != -1)
@@ -81,7 +82,7 @@ int main(int argc, char** argv)
     sigprocmask(SIG_BLOCK,&set, NULL);
 
     //TODO signal handler(SIGPIPE, SIGUSR1 etc)
-    create_worker();
+    run_server();
 
 //    destroy_config(cfg);
 }

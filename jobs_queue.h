@@ -8,9 +8,9 @@
 
 typedef struct __job
 {
-  http_request_old_t *req;
+  http_request_t *req;
   raw_client_data_t *raw_data;
-  http_response_old_t *response;
+  http_response_t *response;
 } job;
 
 typedef job job_t;

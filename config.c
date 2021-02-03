@@ -6,7 +6,7 @@
 #include"queue.h"
 #include"common.h"
 #define comment_sign '#'
-/* config is implelented as RB tree where each node contains a section. Section in its turn contains associative array(key=value) for all domains.
+/* config is implemented as RB tree where each node contains a section. Section in its turn contains associative array(key=value) for all domains.
  * Associative domain implelemted as hash map with open addressing.
  * RB tree implemented with the following properties:
  * - The root is always black
