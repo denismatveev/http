@@ -5,7 +5,6 @@ include_directories(.)
 #add_definitions(-DDEBUG -DQUEUEDEBUG)
 add_library(http
     http.c
-    common.c
     )
 add_library(swdlib
     worker.c

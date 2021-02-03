@@ -49,7 +49,8 @@ typedef struct _node
 {
     char hostname[256]; // key for searching is 'char* hostname' and also it is a comparison field
     section_t section;
-    //void* section;
+    //TODO add a comparator with void*
+    //void* section; // if type is void*, RBTree can store any data
     color_t color;
     struct _node* parent;
     struct _node* right_node;

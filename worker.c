@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <sys/sendfile.h>
 
-// shared variables between threads
+// shared variables among threads
 pthread_cond_t output_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t input_cond = PTHREAD_COND_INITIALIZER;
 jobs_queue_t* input_queue;
@@ -69,7 +69,7 @@ int create_listener()
     return sockfd;
 }
 
-void create_worker()
+void run_server()
 {
     //extern config_t *cfg;
     int conn_sock, nfds, epollfd, sockfd, err, ret;
@@ -81,7 +81,6 @@ void create_worker()
     int nworkers;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    //+++++++++++++++++++++++++++
     sockfd=create_listener();
 
     // queues initializing
@@ -144,7 +143,7 @@ void create_worker()
                 }
             }
             else
-                ret = create_job_with_raw_data_and_place_into_input_queue(events[n].data.fd);
+                ret = create_job_to_process(events[n].data.fd);
         }
 
         pthread_mutex_lock(&mutex);
@@ -155,7 +154,7 @@ void create_worker()
 
 }
 
-int create_job_with_raw_data_and_place_into_input_queue(int client_sock)
+int create_job_to_process(int client_sock)
 {
     job_t *job;
     ssize_t bytes_read;
@@ -205,7 +204,7 @@ void* process_jobs(void* args)
             continue;
 
         // parsing raw client data and create a http_request
-        ret=create_http_request_from_raw_data(job->req, job->raw_data);
+        ret=parse_raw_data(job->req, job->raw_data);
         // depending on what data are in http_request we are making a response
         // TODO implement HEAD request
         if(ret < 0 )
@@ -299,7 +298,7 @@ PUSH:
 
     return NULL;
 }
-void* send_data_from_output_queue(void* args)
+void* send_data_to_client(void* args)
 {
 
     //struct sending_thread_args *targs = args;
@@ -381,7 +380,7 @@ int run_threads(int nprocessing, int nsenders)
 
     for(int i=0; i < nprocessing; ++i)
     {
-        if((rc=pthread_create(senders + i, &sender_attr, send_data_from_output_queue, NULL)))
+        if((rc=pthread_create(senders + i, &sender_attr, send_data_to_client, NULL)))
         {
             WriteLogPError("creating sending thread");
             pthread_attr_destroy(&sender_attr);

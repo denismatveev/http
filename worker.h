@@ -31,11 +31,11 @@ typedef struct processing_thread_args
   pthread_mutex_t mutex;
 } processing_thread_args_t;
 int create_listener(void);
-void create_worker(void) __attribute__ ((noreturn)) ;
+void run_server(void) __attribute__ ((noreturn)) ;
 
-int create_job_with_raw_data_and_place_into_input_queue(int);
+int create_job_to_process(int);
 void* process_jobs(void*);
-void *send_data_from_output_queue(void*);
+void *send_data_to_client(void*);
 
 int run_threads(int nprocessing_threads, int nsender_threads);
 #endif //IOWORKER_H
