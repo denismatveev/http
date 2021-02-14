@@ -5,25 +5,15 @@
 // http://tools.ietf.org/html/rfc2616
 /* General */
 
-char *http_method[] = {
-    "GET",
-    "POST",
-    "HEAD",
-    "PUT",
-    "DELETE",
-    "CONNECT",
-    "OPTIONS",
-    "TRACE",
-    "PATCH",
-    NULL
-};
-char *http_protocol_version[] = {
+static char *http_protocol_version[] =
+{
     "HTTP/1.0",
     "HTTP/1.1",
     "HTTP/2",
     NULL
 };
-char *reason_code_name[] = {
+static char *reason_code_name[] =
+{
     "400 Bad Request",
     "404 Not Found",
     "200 OK",
@@ -32,7 +22,8 @@ char *reason_code_name[] = {
     "501 Not Implemented",
     NULL
 };
-char *content_type[] = {
+static char *content_type[] =
+{
     "text/html",
     "image/jpg",
     "application/pdf",
@@ -41,9 +32,10 @@ char *content_type[] = {
     "text/css",
     NULL
 };
-char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
+static char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
 // the following is used in both request and response
-char* general_header[] = {
+static char* general_header[] =
+{
     "Cache-Control:",
     "Connection:",
     "Date:",
@@ -56,7 +48,8 @@ char* general_header[] = {
     NULL
 };
 // the following is used in response and therefore contains colon and space
-char* response_header[] = {
+static char* response_header[] =
+{
     "Accept-Ranges: ",
     "Age: ",
     "ETag: ",
@@ -69,8 +62,8 @@ char* response_header[] = {
     NULL
 };
 // the following is used in both request and response
-char* entity_header[] = {
-
+static char* entity_header[] =
+{
     "Allow:",
     "Content-Encoding:",
     "Content-Language:",
@@ -84,8 +77,9 @@ char* entity_header[] = {
     NULL
 };
 
-char *request_header[] = {
-    "Accept: ",
+static char* request_header[] =
+{
+    "Accept:",
     "Accept-Charset:",
     "Accept-Encoding:",
     "Accept-Language:",
@@ -106,24 +100,362 @@ char *request_header[] = {
     "User-Agent:",
     NULL
 };
+// errors
 
+static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>";
+static char* not_found_error = "<html><body><head><titile>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>";
+static char* internal_error = "<html><body><head><titile>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
+static char* not_implemented_error = "<html><body><head><titile>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
+
+// According to RFC2616 method must be case sensitive
+// Implied the passing string is null terminated, but doesn't verified if there is '/0' at the end position
+// A caller must take care about null terminating
 http_method_t find_http_method(const char *sval)
 {
-    http_method_t result = GET; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; http_method[i] != NULL; ++i, ++result)
-        if (!(strncmp(sval, http_method[i], 16)))
-            return result;
-    return INVALID_METHOD;
+    http_method_t result=INVALID_METHOD;
+    switch (sval[0])
+    {
+    case 'G':
+        // GET
+        switch(sval[1])
+        {
+        case 'E':
+            switch (sval[2])
+            {
+            case 'T':
+                result = GET;
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'P':
+        // POST, PUT, PATCH
+        switch(sval[1])
+        {
+        case 'O':
+            // POST
+            switch(sval[2])
+            {
+            case 'S':
+                switch(sval[3])
+                {
+                case 'T':
+                    result = POST;
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+
+        case 'U':
+            //PUT
+            switch (sval[2])
+            {
+            case 'T':
+                result = PUT;
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        case 'A':
+            //PATCH
+            switch(sval[2])
+            {
+            case 'T':
+                switch(sval[3])
+                {
+                case 'C':
+                    switch(sval[4])
+                    {
+                    case 'H':
+                        result = PATCH;
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'H':
+        // HEAD
+        switch(sval[1])
+        {
+        case 'E':
+            switch(sval[2])
+            {
+            case 'A':
+                switch(sval[3])
+                {
+                case 'D':
+                    result = HEAD;
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'D':
+        // DELETE
+        switch (sval[1])
+        {
+        case 'E':
+            switch(sval[2])
+            {
+            case 'L':
+                switch(sval[3])
+                {
+                case 'E':
+                    switch(sval[4])
+                    {
+                    case 'T':
+                        switch(sval[5])
+                        {
+                        case 'E':
+                            result = DELETE;
+                            break;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'C':
+        // CONNECT
+        switch (sval[1])
+        {
+        case 'O':
+            switch (sval[2])
+            {
+            case 'N':
+                switch (sval[3])
+                {
+                case 'N':
+                    switch (sval[4])
+                    {
+                    case 'E':
+                        switch (sval[5])
+                        {
+                        case 'C':
+                            switch (sval[6])
+                            {
+                            case 'T':
+                                result = CONNECT;
+                                break;
+                            }
+                            break;
+                        default:
+                            return INVALID_METHOD;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'O':
+        // OPTIONS
+        switch (sval[1])
+        {
+        case 'P':
+            switch (sval[2])
+            {
+            case 'T':
+                switch (sval[3])
+                {
+                case 'I':
+                    switch (sval[4])
+                    {
+                    case 'O':
+                        switch (sval[5])
+                        {
+                        case 'N':
+                            switch (sval[6])
+                            {
+                            case 'S':
+                                result = OPTIONS;
+                                break;
+                            default:
+                                return INVALID_METHOD;
+                            }
+                            break;
+                        default:
+                            return INVALID_METHOD;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'T':
+        // TRACE
+        switch(sval[1])
+        {
+        case 'R':
+            switch (sval[2])
+            {
+            case 'A':
+                switch (sval[3])
+                {
+                case 'C':
+                    switch (sval[4])
+                    {
+                    case 'E':
+                        result = TRACE;
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    default:
+        return INVALID_METHOD;
+    }
+
+    return result;
+
 }
 http_protocol_version_t find_http_protocol_version(const char *sval)
 {
-    http_protocol_version_t result = HTTP10; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; http_protocol_version[i] != NULL; ++i, ++result)
-        if (!(strncmp(sval, http_protocol_version[i], 16)))
-            return result;
-    return INVALID_PROTO;
+
+    http_protocol_version_t result = INVALID_PROTO;
+
+    switch (sval[0])
+    {
+    case 'H':
+        switch (sval[1])
+        {
+        case 'T':
+            switch (sval[2])
+            {
+            case 'T':
+                switch (sval[3])
+                {
+                case 'P':
+                    switch (sval[4])
+                    {
+                    case '\\':
+                        switch (sval[5])
+                        {
+                        case '1':
+                            switch (sval[6])
+                            {
+                            case '.':
+                                switch (sval[7])
+                                {
+                                case '0':
+                                    result = HTTP10;
+                                    break;
+                                case '1':
+                                    result = HTTP11;
+                                    break;
+                                }
+                                break;
+                            default:
+                                return INVALID_PROTO;
+                            }
+                            break;
+                        case '2':
+                            result = HTTP2;
+                            break;
+                        default:
+                            return INVALID_PROTO;
+                        }
+                        break;
+                    default:
+                        return INVALID_PROTO;
+                    }
+                    break;
+                default:
+                    return INVALID_PROTO;
+                }
+                break;
+            default:
+                return INVALID_PROTO;
+            }
+            break;
+        default:
+            return INVALID_PROTO;
+        }
+        break;
+    default:
+        return INVALID_PROTO;
+    }
+
+    return result;
 }
 
 // convert content_type into string
@@ -251,9 +583,8 @@ int reason_code_to_str(char *str, http_reason_code_t rt)
 http_general_header_t find_http_general_header(const char *gh)
 {
     http_general_header_t result = Cache_Control; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; general_header[i] != NULL; ++i, ++result)
-        if (!(strncmp(gh, general_header[i], 16)))
+    for (u_int_t i = 0; general_header[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(gh, general_header[i], 16)))
             return result;
     return INVALID_GENERAL_HEADER;
 }
@@ -261,30 +592,77 @@ http_general_header_t find_http_general_header(const char *gh)
 http_entity_header_t find_http_entity_header(const char *eh)
 {
     http_entity_header_t result = Allow; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; entity_header[i] != NULL; ++i, ++result)
-        if (!(strncmp(eh, entity_header[i], 16)))
+    for (u_int_t i = 0; entity_header[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(eh, entity_header[i], 16)))
             return result;
     return INVALID_ENTITY_HEADER;
 }
 http_response_header_t find_http_response_header(const char *resph)
 {
     http_response_header_t result = Accept_Ranges; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; response_header[i] != NULL; ++i, ++result)
-        if (!(strncmp(resph, response_header[i], 16)))
+    for (u_int_t i = 0; response_header[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(resph, response_header[i], 16)))
             return result;
     return INVALID_RESPONSE_HEADER;
 }
 
+//"Accept:",
+//"Accept-Charset:",
+//"Accept-Encoding:",
+//"Accept-Language:",
+//"Authorization:",
+//"Expect:",
+//"From:",
+//"Host:",
+//"If-Match: ",
+//"If-Modified-Since: ",
+//"If-None-Match: ",
+//"If-Range:",
+//"If-Unmodified-Since:",
+//"Max-Forwards:",
+//"Proxy-Authorization:",
+//"Range:",
+//"Referer:",
+//"TE:",
+//"User-Agent:",
+//NULL
+
 http_request_header_t find_http_request_header(const char *reqh)
 {
+
     http_request_header_t result = Accept; /* value corresponding to etable[0] */
-    int i = 0;
-    for (i = 0; request_header[i] != NULL; ++i, ++result)
-        if (!(strncmp(reqh, request_header[i], 16)))
+    char ch = reqh[0];
+    u_int_t i=0; // initial position for searching
+    switch (ch)
+    {
+    case 'A':
+    case 'a':
+        i=0;
+        break;
+    case 'I':
+    case 'i':
+        i=8;
+        result=If_Match;
+        break;
+    case 'H':
+    case 'h':
+        result=Host;
+        i=7;
+        break;
+    case 'U':
+    case 'u':
+        result=User_Agent;
+        i=18;
+        break;
+    default:
+        break;
+    }
+
+    for (;request_header[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(reqh, request_header[i], 16)))
             return result;
     return INVALID_REQUEST_HEADER;
+
 }
 
 // function must pass args char* str buffer not more that HTTP_HEADER_NAME_MAX_LEN
@@ -511,7 +889,6 @@ int http_entity_header_to_str(http_entity_header_t h, char* str)
     }
 
     return 0;
-
 }
 int http_response_header_to_str(http_response_header_t h, char* str)
 {
@@ -725,57 +1102,81 @@ int create_status_line(char* str, http_protocol_version_t p, http_reason_code_t 
 }
 
 /* Requests */
-
+// Function breaks down the request into different lines(replaces \r\n by \0)
 int parse_raw_data(http_request_t *req, raw_client_data_t *rd)
 {
     if(rd == NULL)
         return -1;
     char *tok;
+    u_int_t count=0;
     char header[HTTP_HEADER_NAME_MAX_LEN], value[HTTP_HEADER_VALUE_MAX_LEN];
 
-    char** saveptr=NULL;
-    char request_line[REQUEST_LINE_LENGTH];
+    char *saveptr=NULL;
 
     //strtok_r is MT-Safe function
-    if((tok = strtok_r(rd->initial_data, CRLF, saveptr)) == NULL)// search for Request-Line
+    if((tok = strtok_r(rd->initial_data, CRLF, &saveptr)) == NULL)// search for Request-Line
         return 1;
 
     if (strlen(tok) >= REQUEST_LINE_LENGTH)
         return 1;
-    strncpy(request_line, tok, REQUEST_LINE_LENGTH);
 
-    if((parse_request_line(&(req->req_line), request_line)) != 0)
+    if((parse_request_line(&(req->req_line), tok)) != 0)
         return 1;
 
-    while(tok != NULL)
+    while(((tok = strtok_r(NULL, CRLF, &saveptr)) != NULL) && count < HEADERS_LIMIT)
     {
-        tok = strtok_r(NULL, CRLF, saveptr);
         if((parse_http_header_line(tok, header, value)) != 0)
             return 1;
+        count ++;
     }
 
     return 0;
 }
-int parse_http_header_line(char* header_line, char header[HTTP_HEADER_NAME_MAX_LEN], char value[HTTP_HEADER_VALUE_MAX_LEN])
+// Function parses Header Line like
+// Host: ya.ru
+int parse_http_header_line(char* header_line, char* header, char *value)
 {
-    char * tok;
-    char** saveptr=NULL;
+    char *saveptr=NULL;
+    char *tok;
+    // Header
+    if((tok=strtok_r(header_line, SP, &saveptr)) == NULL)
+        return 1;
 
+    strncpy(header, tok, HTTP_HEADER_NAME_MAX_LEN);
+    // Header value
+    if((tok=strtok_r(NULL, SP, &saveptr)) == NULL)
+        return 1;
 
-
+    strncpy(value, tok, HTTP_HEADER_VALUE_MAX_LEN);
 
     return 0;
 }
+// Function parses Request Line like
+// GET /index.php HTTP/1.1
 int parse_request_line(http_request_line_t* rl, const char* rc)
 {
+    char *saveptr=NULL;
+    char *tok;
+    // Request Method
+    if((tok=strtok_r(rc, SP, &saveptr)) == NULL)
+        return 1;
+    if((rl->method=find_http_method(tok)) == INVALID_METHOD)
+        return INVALID_METHOD;
+    // Request URI. TODO There is no validating if URI is correct
+    if(((tok=strtok_r(NULL, SP, &saveptr)) == NULL) ||  tok[0] != '/')
+        return 1;
+    strncpy(rl->request_URI, tok, REQUEST_URI_STRING_LENGTH);
 
+    // Request Protocol
+    if((tok=strtok_r(NULL, "", &saveptr)) == NULL)
+        return 1;
+    if((rl->http_version=find_http_protocol_version(tok)) == INVALID_PROTO)
+        return INVALID_PROTO;
 
     return 0;
 }
 
-
-
-int get_current_date_string(char*date)
+int get_current_date_string(char* date)
 {
 
     time_t t = time(NULL);

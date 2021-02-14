@@ -30,12 +30,14 @@
 #define REASON_CODE_NAME_MAX_LENGTH 21
 #define HTTP_HEADER_NAME_MAX_LEN 21
 #define HTTP_HEADER_VALUE_MAX_LEN 128
+#define HTTP_METHOD_MAX_LEN 8
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
 
 #define CRLF "\r\n"
 #define SP " "
-
-extern char *http_method[], *http_protocol_version[], *reason_code_name[], *content_type[], *file_ext[],*general_header[], *response_header[], *entity_header[], *request_header[];
+typedef char u_int_t;
+//extern  *http_method[];
+//extern char *http_protocol_version[], *reason_code_name[], *content_type[], *file_ext[],*general_header[], *response_header[], *entity_header[], *request_header[];
 /* enumeration of all available HTTP methods */
 typedef enum http_method
 {
@@ -194,6 +196,7 @@ typedef struct __http_request
 {
     http_request_line_t req_line;
     http_headers_list_t* headers;
+    char parse_result; // indicates if parsing was successful or not, useful for 'BAD REQUEST'
     //char* message_body[1024];//TODO find out in https://tools.ietf.org/html/rfc2616 size of message_body!
 } http_request_t;
 
@@ -278,7 +281,7 @@ int get_file_MIME_type_in_str(char* content_type, const char* filename);
 int create_status_line(char*, http_protocol_version_t, http_reason_code_t);
 int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt);
 int reason_code_to_str(char *, http_reason_code_t);
-int parse_http_header_line(char* header_line, char header[HTTP_HEADER_NAME_MAX_LEN], char value[HTTP_HEADER_VALUE_MAX_LEN]);
+int parse_http_header_line(char* header_line, char *header, char *value);
 http_method_t find_http_method(const char *);
 http_protocol_version_t find_http_protocol_version(const char *);
 #endif /*_HTTP_H*/
