@@ -32,12 +32,13 @@
 #define HTTP_HEADER_VALUE_MAX_LEN 128
 #define HTTP_METHOD_MAX_LEN 8
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
-
+#define TOLOWERCASE(c)      (char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
+#define TOUPPERCASE(c)      (char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 #define CRLF "\r\n"
 #define SP " "
+
 typedef char u_int_t;
-//extern  *http_method[];
-//extern char *http_protocol_version[], *reason_code_name[], *content_type[], *file_ext[],*general_header[], *response_header[], *entity_header[], *request_header[];
+
 /* enumeration of all available HTTP methods */
 typedef enum http_method
 {
@@ -160,7 +161,17 @@ typedef enum __header_type
     http_entity_header=3,
     INVALID_HEADER_TYPE=-1
 }http_header_type_t;
+typedef enum __state_parsing
+{
+    STATE_INVALID_METHOD=1,
+    STATE_INVALID_PROTO,
+    STATE_INVALID_MIME,
+    STATE_INVALID_RESPONSE_HEADER,
+    STATE_INVALID_GENERAL_HEADER,
+    STATE_INVALID_REQUEST_HEADER,
+    STATE_INVALID_ENTITY_HEADER
 
+}state_parsing_t;
 typedef struct __http_request_line
 {
     http_method_t method;
@@ -173,6 +184,7 @@ typedef struct __http_header_node_t
     int http_header; // enum like Host:
     char http_header_value[HTTP_HEADER_VALUE_MAX_LEN]; // name like ya.ru
     http_header_type_t type;
+    state_parsing_t state;
     struct __http_header_node_t* next;
 }http_header_node_t;
 
