@@ -562,8 +562,9 @@ int main(int num, char ** args)
 clock_t start, end;
 double cpu_time_used;
 
-char header1[]="Authorization:";
-char header2[]="Accept-Language:";
+char header1[]="authorization:";
+//header1[6]=200; // check if non ascii code
+char header2[]="ACCEPT-LANGUAGE:";
 char header3[]="Host:";
 char wrong_header1[]="get";// wrong headers
 char wrong_header2[]="Accept-";//wrong Accept-
