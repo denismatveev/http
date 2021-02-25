@@ -1,4 +1,4 @@
-#include "http.h"
+﻿#include "http.h"
 #include <locale.h>
 #include <time.h>
 // Based on RFC 2616
@@ -100,6 +100,29 @@ static char* request_header[] =
     "User-Agent:",
     NULL
 };
+static char* request_header_lowercase[] =
+{
+    "accept:",
+    "accept-charset:",
+    "accept-encoding:",
+    "accept-language:",
+    "authorization:",
+    "expect:",
+    "from:",
+    "host:",
+    "if-match:",
+    "if-modified-since:",
+    "if-none-match:",
+    "if-range:",
+    "if-unmodified-since:",
+    "max-forwards:",
+    "proxy-authorization:",
+    "range:",
+    "referer:",
+    "te:",
+    "user-agent:",
+    NULL
+};
 // errors
 
 static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>";
@@ -113,287 +136,286 @@ static char* not_implemented_error = "<html><body><head><titile>501 Not Implemen
 
 http_method_t find_http_method(const char *sval)
 {
-   http_method_t result=INVALID_METHOD;
-   switch (sval[0])
-   {
-   case 'G':
-       // GET
-       switch(sval[1])
-       {
-       case 'E':
-           switch (sval[2])
-           {
-           case 'T':
-               result = GET;
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'P':
-       // POST, PUT, PATCH
-       switch(sval[1])
-       {
-       case 'O':
-           // POST
-           switch(sval[2])
-           {
-           case 'S':
-               switch(sval[3])
-               {
-               case 'T':
-                   result = POST;
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
+    http_method_t result=INVALID_METHOD;
+    switch (sval[0])
+    {
+    case 'G':
+        // GET
+        switch(sval[1])
+        {
+        case 'E':
+            switch (sval[2])
+            {
+            case 'T':
+                result = GET;
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'P':
+        // POST, PUT, PATCH
+        switch(sval[1])
+        {
+        case 'O':
+            // POST
+            switch(sval[2])
+            {
+            case 'S':
+                switch(sval[3])
+                {
+                case 'T':
+                    result = POST;
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
 
-       case 'U':
-           //PUT
-           switch (sval[2])
-           {
-           case 'T':
-               result = PUT;
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       case 'A':
-           //PATCH
-           switch(sval[2])
-           {
-           case 'T':
-               switch(sval[3])
-               {
-               case 'C':
-                   switch(sval[4])
-                   {
-                   case 'H':
-                       result = PATCH;
-                       break;
-                   default:
-                       return INVALID_METHOD;
-                   }
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'H':
-       // HEAD
-       switch(sval[1])
-       {
-       case 'E':
-           switch(sval[2])
-           {
-           case 'A':
-               switch(sval[3])
-               {
-               case 'D':
-                   result = HEAD;
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'D':
-       // DELETE
-       switch (sval[1])
-       {
-       case 'E':
-           switch(sval[2])
-           {
-           case 'L':
-               switch(sval[3])
-               {
-               case 'E':
-                   switch(sval[4])
-                   {
-                   case 'T':
-                       switch(sval[5])
-                       {
-                       case 'E':
-                           result = DELETE;
-                           break;
-                       }
-                       break;
-                   default:
-                       return INVALID_METHOD;
-                   }
-                   break;
-               default:
-                   return INVALID_METHOD;
+        case 'U':
+            //PUT
+            switch (sval[2])
+            {
+            case 'T':
+                result = PUT;
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        case 'A':
+            //PATCH
+            switch(sval[2])
+            {
+            case 'T':
+                switch(sval[3])
+                {
+                case 'C':
+                    switch(sval[4])
+                    {
+                    case 'H':
+                        result = PATCH;
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'H':
+        // HEAD
+        switch(sval[1])
+        {
+        case 'E':
+            switch(sval[2])
+            {
+            case 'A':
+                switch(sval[3])
+                {
+                case 'D':
+                    result = HEAD;
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'D':
+        // DELETE
+        switch (sval[1])
+        {
+        case 'E':
+            switch(sval[2])
+            {
+            case 'L':
+                switch(sval[3])
+                {
+                case 'E':
+                    switch(sval[4])
+                    {
+                    case 'T':
+                        switch(sval[5])
+                        {
+                        case 'E':
+                            result = DELETE;
+                            break;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
 
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'C':
-       // CONNECT
-       switch (sval[1])
-       {
-       case 'O':
-           switch (sval[2])
-           {
-           case 'N':
-               switch (sval[3])
-               {
-               case 'N':
-                   switch (sval[4])
-                   {
-                   case 'E':
-                       switch (sval[5])
-                       {
-                       case 'C':
-                           switch (sval[6])
-                           {
-                           case 'T':
-                               result = CONNECT;
-                               break;
-                           }
-                           break;
-                       default:
-                           return INVALID_METHOD;
-                       }
-                       break;
-                   default:
-                       return INVALID_METHOD;
-                   }
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'O':
-       // OPTIONS
-       switch (sval[1])
-       {
-       case 'P':
-           switch (sval[2])
-           {
-           case 'T':
-               switch (sval[3])
-               {
-               case 'I':
-                   switch (sval[4])
-                   {
-                   case 'O':
-                       switch (sval[5])
-                       {
-                       case 'N':
-                           switch (sval[6])
-                           {
-                           case 'S':
-                               result = OPTIONS;
-                               break;
-                           default:
-                               return INVALID_METHOD;
-                           }
-                           break;
-                       default:
-                           return INVALID_METHOD;
-                       }
-                       break;
-                   default:
-                       return INVALID_METHOD;
-                   }
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   case 'T':
-       // TRACE
-       switch(sval[1])
-       {
-       case 'R':
-           switch (sval[2])
-           {
-           case 'A':
-               switch (sval[3])
-               {
-               case 'C':
-                   switch (sval[4])
-                   {
-                   case 'E':
-                       result = TRACE;
-                       break;
-                   default:
-                       return INVALID_METHOD;
-                   }
-                   break;
-               default:
-                   return INVALID_METHOD;
-               }
-               break;
-           default:
-               return INVALID_METHOD;
-           }
-           break;
-       default:
-           return INVALID_METHOD;
-       }
-       break;
-   default:
-       return INVALID_METHOD;
-   }
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'C':
+        // CONNECT
+        switch (sval[1])
+        {
+        case 'O':
+            switch (sval[2])
+            {
+            case 'N':
+                switch (sval[3])
+                {
+                case 'N':
+                    switch (sval[4])
+                    {
+                    case 'E':
+                        switch (sval[5])
+                        {
+                        case 'C':
+                            switch (sval[6])
+                            {
+                            case 'T':
+                                result = CONNECT;
+                                break;
+                            }
+                            break;
+                        default:
+                            return INVALID_METHOD;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'O':
+        // OPTIONS
+        switch (sval[1])
+        {
+        case 'P':
+            switch (sval[2])
+            {
+            case 'T':
+                switch (sval[3])
+                {
+                case 'I':
+                    switch (sval[4])
+                    {
+                    case 'O':
+                        switch (sval[5])
+                        {
+                        case 'N':
+                            switch (sval[6])
+                            {
+                            case 'S':
+                                result = OPTIONS;
+                                break;
+                            default:
+                                return INVALID_METHOD;
+                            }
+                            break;
+                        default:
+                            return INVALID_METHOD;
+                        }
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    case 'T':
+        // TRACE
+        switch(sval[1])
+        {
+        case 'R':
+            switch (sval[2])
+            {
+            case 'A':
+                switch (sval[3])
+                {
+                case 'C':
+                    switch (sval[4])
+                    {
+                    case 'E':
+                        result = TRACE;
+                        break;
+                    default:
+                        return INVALID_METHOD;
+                    }
+                    break;
+                default:
+                    return INVALID_METHOD;
+                }
+                break;
+            default:
+                return INVALID_METHOD;
+            }
+            break;
+        default:
+            return INVALID_METHOD;
+        }
+        break;
+    default:
+        return INVALID_METHOD;
+    }
 
-   return result;
+    return result;
 }
-
 
 http_protocol_version_t find_http_protocol_version(const char *sval)
 {
 
- http_protocol_version_t result = INVALID_PROTO;
+    http_protocol_version_t result = INVALID_PROTO;
     switch (sval[0])
     {
     case 'H':
@@ -607,6 +629,25 @@ http_response_header_t find_http_response_header(const char *resph)
         if (!(strncasecmp(resph, response_header[i], 16)))
             return result;
     return INVALID_RESPONSE_HEADER;
+}
+
+http_request_header_t find_http_request_header_app5(char* v)
+{
+    //    "Accept:
+    //    "Accept-Charset:
+    //    "Accept-Encoding:
+    //    "Accept-Language:
+    //    "Authorization:
+    int j = 0, i = 0;
+
+    for (i = 0; request_header[j] != NULL && v[i] != ':';)
+    {
+        if(TOLOWERCASE(v[i]) != request_header[j][i] )
+            j++;
+        else i++;
+    }
+    return (v[i] == ':' ? j :  INVALID_REQUEST_HEADER);
+
 }
 
 http_request_header_t find_http_request_header(const char *h)

@@ -48,6 +48,7 @@ add_executable(test_rbtree
 add_executable(test_cfg
     tests/cfg_test.c
     queue.c)
+add_executable(case_insensitive research/compare_case_insensitive.c)
 target_link_libraries(swd swdlib pthread RBTree)
 target_link_libraries(test_swd_queues http swdlib pthread)
 target_link_libraries(test_assoc swdlib)

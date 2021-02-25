@@ -1,22 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "../http.h"
 
-
-typedef enum http_method
-{
-    GET = 0,
-    POST,
-    HEAD,
-    PUT,
-    DELETE,
-    CONNECT,
-    OPTIONS,
-    TRACE,
-    PATCH,
-    INVALID_METHOD = -1
-} http_method_t;
-
+// This file created to compare different types for finding words matching using if-else statement and switch in case sensitive comparison.
+// There is time calculation spent by different approaches. In the end consumed time by functions will be shown.
+// These approaches has different perfomance if compile with no optimization(or default -O1 in gcc). But if specify -Ofast all functions works almost equally.
+// To compile: gcc compare_case_sensitive.c -o compare_case_sensitive -Ofast
 
 http_method_t find_http_method_if_else(const char *sval)
 {
