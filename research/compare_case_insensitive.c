@@ -10,7 +10,9 @@
 // These approaches has different perfomance if compile with no optimization(or default -O1 in gcc). But if specify -Ofast all functions works almost equally.
 // To compile: gcc compare_case_insensitive.c -o compare_case_sensitive -Ofast
 // The fastest turned out approach with switch-case. But between these two was approach3(switch-case with default action)
-
+// Jump tables:
+// http://www.cs.umd.edu/~waa/311-F09/jumptable.pdf
+// disassemle objdump -d <file> -S <source>
 static char* request_header[] =
 {
     "accept:",
@@ -34,7 +36,13 @@ static char* request_header[] =
     "user-agent:",
     NULL
 };
-http_request_header_t find_http_request_header_app1(const char *h)
+typedef struct __request_header_hash
+{
+    http_request_header_t h;
+    unsigned long hash;
+}request_header_hash;
+static request_header_hash request_hash_arr[19]={0};
+http_request_header_t find_http_request_header_app1(char *h)
 {
     http_request_header_t result = Accept; /* value corresponding to etable[0] */
     char ch = h[0];
@@ -70,7 +78,7 @@ http_request_header_t find_http_request_header_app1(const char *h)
 }
 
 
-http_request_header_t find_http_request_header_app2(const char *reqh)
+http_request_header_t find_http_request_header_app2(char *reqh)
 {
 
     // Accept
@@ -322,7 +330,7 @@ http_request_header_t find_http_request_header_app2(const char *reqh)
     return INVALID_REQUEST_HEADER;
 
 }
-http_request_header_t find_http_request_header_app3(const char *h)
+http_request_header_t find_http_request_header_app3(char *h)
 {
     // this will be compiled as a jump table
     switch(h[0])
@@ -1513,7 +1521,7 @@ http_request_header_t find_http_request_header_app3(const char *h)
 
 }
 
-http_request_header_t find_http_request_header_app4(const char *h)
+http_request_header_t find_http_request_header_app4(char *h)
 {
     // this will be compiled as a jump table
     switch(h[0])
@@ -2583,10 +2591,153 @@ http_request_header_t find_http_request_header_app5(char* v)
     return (v[i] == ':' ? j :  INVALID_REQUEST_HEADER);
 
 }
-int main (int argc, char** argv)
+
+unsigned long int hash_func_app6(char *k)
+{
+
+    unsigned long int hash = 5381;
+    char s=0;
+    int i=0;
+
+    while ((s = k[i++]))
+        hash = ((hash << 5) + hash) + (unsigned long)TOLOWERCASE(s); /* hash * 33 + c */
+
+    return hash;
+}
+
+int init_hash_table_app6(char* request_header[])
+{
+    unsigned long int hash;
+    int i = 0;
+    while(request_header[i] != NULL)
+    {
+        hash = hash_func_app6(request_header[i]);
+        request_hash_arr[i].hash = hash;
+        request_hash_arr[i].h = i;
+        i++;
+    }
+    return 0;
+}
+
+//TODO compare 1st letter, then calculate hash of header which begins from that letter, compare hashes. Let's say, the first letter is h, calculate hash for header 'host', compare hash with precalculated hash.
+http_request_header_t find_http_request_header_app6(char* v)
+{
+    unsigned long int hash;
+
+    hash = hash_func_app6(v);
+    //    "accept:", 0
+    //    "accept-charset:", 1
+    //    "accept-encoding:", 2
+    //    "accept-language:", 3
+    //    "authorization:", 4
+    //    "expect:", 5
+    //    "from:", 6
+    //    "host:", 7
+    //    "if-match:", 8
+    //    "if-modified-since:", 9
+    //    "if-none-match:", 10
+    //    "if-range:", 11
+    //    "if-unmodified-since:", 12
+    //    "max-forwards:", 13
+    //    "proxy-authorization:", 14
+    //    "range:", 15
+    //    "referer:", 16
+    //    "te:", 17
+    //    "user-agent:", 18
+
+    switch (v[0])
+    {
+    case 'A':
+    case 'a':
+        if(hash == request_hash_arr[0].hash)
+            return request_hash_arr[0].h;
+        if(hash == request_hash_arr[1].hash)
+            return request_hash_arr[1].h;
+        if(hash == request_hash_arr[2].hash)
+            return request_hash_arr[2].h;
+        if(hash == request_hash_arr[3].hash)
+            return request_hash_arr[3].h;
+        if(hash == request_hash_arr[4].hash)
+            return request_hash_arr[4].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'E':
+    case 'e':
+        if(hash == request_hash_arr[5].hash)
+            return request_hash_arr[5].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'F':
+    case 'f':
+        if(hash == request_hash_arr[6].hash)
+            return request_hash_arr[6].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'H':
+    case 'h':
+        if(hash == request_hash_arr[7].hash)
+            return request_hash_arr[7].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'I':
+    case 'i':
+        if(hash == request_hash_arr[8].hash)
+            return request_hash_arr[8].h;
+        if(hash == request_hash_arr[9].hash)
+            return request_hash_arr[9].h;
+        if(hash == request_hash_arr[10].hash)
+            return request_hash_arr[10].h;
+        if(hash == request_hash_arr[11].hash)
+            return request_hash_arr[11].h;
+        if(hash == request_hash_arr[12].hash)
+            return request_hash_arr[12].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'M':
+    case 'm':
+        if(hash == request_hash_arr[13].hash)
+            return request_hash_arr[13].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'P':
+    case 'p':
+        if(hash == request_hash_arr[14].hash)
+            return request_hash_arr[14].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'R':
+    case 'r':
+        if(hash == request_hash_arr[15].hash)
+            return request_hash_arr[15].h;
+        if(hash == request_hash_arr[16].hash)
+            return request_hash_arr[16].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'T':
+    case 't':
+        if(hash == request_hash_arr[17].hash)
+            return request_hash_arr[17].h;
+        return INVALID_REQUEST_HEADER;
+
+    case 'U':
+    case 'u':
+        if(hash == request_hash_arr[18].hash)
+            return request_hash_arr[18].h;
+        return INVALID_REQUEST_HEADER;
+
+    default:
+        return INVALID_REQUEST_HEADER;
+
+    }
+
+
+}
+//TODO to prevent using collisions resolving, find perfect hash function
+int calculate_func_time(http_request_header_t (*app_func)(char* h), char* description)
 {
     clock_t start, end;
     double cpu_time_used;
+    http_request_header_t r1,r2,r3,r4,r5,r6,r7,r8;
     char h1[]="Host:";
     char h2[]="User-agent:";
     char h3[]="Proxy-Authorization:";
@@ -2595,98 +2746,34 @@ int main (int argc, char** argv)
     char h6[]="Accept-Encoding:";
     char h7[]="abc";// wrong
     char h8[]="Host"; // wrong
-    http_request_header_t r1,r2,r3,r4,r5,r6,r7,r8;
-
-
-    start = clock();
-    for(int i=0; i < 10000; i++)
-    {
-        r1=find_http_request_header_app1(h1);
-        r2=find_http_request_header_app1(h2);
-        r3=find_http_request_header_app1(h3);
-        r4=find_http_request_header_app1(h4);
-        r5=find_http_request_header_app1(h5);
-        r6=find_http_request_header_app1(h6);
-        r7=find_http_request_header_app1(h7);
-        r8=find_http_request_header_app1(h8);
-    }
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\napproach 1 (switch with splitting into groups, then for loop and strncmp) parsing functions took: %f\n", cpu_time_used);
-    printf("results\n r1=%i,r2=%i,r3=%i,r4=%i,r5=%i, r6=%i, r7=%i, r8=%i\n",r1,r2,r3,r4,r5,r6,r7,r8);
-
-
     start = clock();
     for(int i=0; i < 10000; i++)
     {
 
-        r1=find_http_request_header_app2(h1);
-        r2=find_http_request_header_app2(h2);
-        r3=find_http_request_header_app2(h3);
-        r4=find_http_request_header_app2(h4);
-        r5=find_http_request_header_app2(h5);
-        r6=find_http_request_header_app2(h6);
-        r7=find_http_request_header_app2(h7);
-        r8=find_http_request_header_app2(h8);
+        r1=app_func(h1);
+        r2=app_func(h2);
+        r3=app_func(h3);
+        r4=app_func(h4);
+        r5=app_func(h5);
+        r6=app_func(h6);
+        r7=app_func(h7);
+        r8=app_func(h8);
     }
     end = clock();
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\napproach 2(compare each letter in lower case without loops) parsing functions took: %f\n", cpu_time_used);
-    printf("results\n r1=%i,r2=%i,r3=%i,r4=%i,r5=%i, r6=%i, r7=%i, r8=%i\n",r1,r2,r3,r4,r5,r6,r7,r8);
 
-    start = clock();
-    for(int i=0; i < 10000; i++)
-    {
+    printf("r1=%i|r2=%i|r3=%i|r4=%i|r5=%i|r6=%i|r7=%i|r8=%i|time=%f",r1,r2,r3,r4,r5,r6,r7,r8, cpu_time_used);
+    printf("\t%s\n",description);
+    return 0;
 
-        r1=find_http_request_header_app3(h1);
-        r2=find_http_request_header_app3(h2);
-        r3=find_http_request_header_app3(h3);
-        r4=find_http_request_header_app3(h4);
-        r5=find_http_request_header_app3(h5);
-        r6=find_http_request_header_app3(h6);
-        r7=find_http_request_header_app3(h7);
-        r8=find_http_request_header_app3(h8);
-    }
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\napproach 3(switch and break-default action if no matching) parsing functions took: %f\n", cpu_time_used);
-    printf("results\n r1=%i,r2=%i,r3=%i,r4=%i,r5=%i, r6=%i, r7=%i, r8=%i\n",r1,r2,r3,r4,r5,r6,r7,r8);
-
-
-    start = clock();
-    for(int i=0; i < 10000; i++)
-    {
-
-        r1=find_http_request_header_app4(h1);
-        r2=find_http_request_header_app4(h2);
-        r3=find_http_request_header_app4(h3);
-        r4=find_http_request_header_app4(h4);
-        r5=find_http_request_header_app4(h5);
-        r6=find_http_request_header_app4(h6);
-        r7=find_http_request_header_app4(h7);
-        r8=find_http_request_header_app4(h8);
-    }
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\napproach 4(switch and return without default action if no matching) parsing functions took: %f\n", cpu_time_used);
-    printf("results\n r1=%i,r2=%i,r3=%i,r4=%i,r5=%i, r6=%i, r7=%i, r8=%i\n",r1,r2,r3,r4,r5,r6,r7,r8);
-
-
-    start = clock();
-    for(int i=0; i < 10000; i++)
-    {
-
-        r1=find_http_request_header_app5(h1);
-        r2=find_http_request_header_app5(h2);
-        r3=find_http_request_header_app5(h3);
-        r4=find_http_request_header_app5(h4);
-        r5=find_http_request_header_app5(h5);
-        r6=find_http_request_header_app5(h6);
-        r7=find_http_request_header_app5(h7);
-        r8=find_http_request_header_app5(h8);
-    }
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("\napproach 5 (for-if searching matching, but without rolling back like strncasecmp() function) parsing functions took: %f\n", cpu_time_used);
-    printf("results\n r1=%i,r2=%i,r3=%i,r4=%i,r5=%i, r6=%i, r7=%i, r8=%i\n",r1,r2,r3,r4,r5,r6,r7,r8);
+}
+int main (int argc, char** argv)
+{
+    init_hash_table_app6(request_header);
+    calculate_func_time(find_http_request_header_app1, "approach 1(switch with splitting into groups, then 'for' loop and strncmp)");
+    calculate_func_time(find_http_request_header_app2, "approach 2(compare each letter in lower case with no loops)");
+    calculate_func_time(find_http_request_header_app3, "approach 3(switch and break-default action if no matching)");
+    calculate_func_time(find_http_request_header_app4, "approach 4(switch and return with no default action if no matching)");
+    calculate_func_time(find_http_request_header_app5, "approach 5(for-if searching matching, but without rolling back like strncasecmp() function");
+    calculate_func_time(find_http_request_header_app6, "approach 6(hash tables)");
 }
