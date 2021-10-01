@@ -56,7 +56,7 @@ unsigned long int hash_func(const char *k)
 {
 
     char tmp[128];
-    unsigned long int hash = 5381;
+    unsigned long int hash = 5381; // 5381 is a super-prime
     char s=0;
     int i=0;
 

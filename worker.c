@@ -204,7 +204,7 @@ void* process_jobs(void* args)
             continue;
 
         // parsing raw client data and create a http_request
-        ret=parse_raw_data(job->req, job->raw_data);
+        ret=process_http_data(job->req, job->raw_data);
         // depending on what data are in http_request we are making a response
         // TODO implement HEAD request
         if(ret < 0 )

@@ -2644,7 +2644,9 @@ http_request_header_t find_http_request_header_app6(char* v)
     //    "referer:", 16
     //    "te:", 17
     //    "user-agent:", 18
-
+    // TODO
+    // it is impossible to compare non-integer in switch
+    // The following implementation with branching by the first letter works a bit faster than using pure if-else statements
     switch (v[0])
     {
     case 'A':
@@ -2732,6 +2734,8 @@ http_request_header_t find_http_request_header_app6(char* v)
 
 
 }
+
+
 //TODO to prevent using collisions resolving, find perfect hash function
 int calculate_func_time(http_request_header_t (*app_func)(char* h), char* description)
 {

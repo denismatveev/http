@@ -1,27 +1,24 @@
-﻿#include "http.h"
+#include "http.h"
 #include <locale.h>
 #include <time.h>
 // Based on RFC 2616
-// http://tools.ietf.org/html/rfc2616
+// https://datatracker.ietf.org/doc/html/rfc2616
+
 /* General */
 
-static char *http_protocol_version[] =
+ static const char *http_protocol_version[] =
 {
-    "HTTP/1.0",
-    "HTTP/1.1",
-    "HTTP/2",
-    NULL
+#define XX(num, name, proto_str) #proto_str,
+HTTP_PROTOCOL(XX)
+#undef XX
 };
 static char *reason_code_name[] =
 {
-    "400 Bad Request",
-    "404 Not Found",
-    "200 OK",
-    "413 Entity Too Large",
-    "500 Internal Error",
-    "501 Not Implemented",
-    NULL
+#define XX(num, name, reason_code_str) #reason_code_str,
+HTTP_REASON_CODE(XX)
+#undef XX
 };
+
 static char *content_type[] =
 {
     "text/html",
@@ -100,27 +97,17 @@ static char* request_header[] =
     "User-Agent:",
     NULL
 };
-static char* request_header_lowercase[] =
+static char* http_method[] =
 {
-    "accept:",
-    "accept-charset:",
-    "accept-encoding:",
-    "accept-language:",
-    "authorization:",
-    "expect:",
-    "from:",
-    "host:",
-    "if-match:",
-    "if-modified-since:",
-    "if-none-match:",
-    "if-range:",
-    "if-unmodified-since:",
-    "max-forwards:",
-    "proxy-authorization:",
-    "range:",
-    "referer:",
-    "te:",
-    "user-agent:",
+    "GET",
+    "POST",
+    "HEAD",
+    "PUT",
+    "DELETE",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "PATCH",
     NULL
 };
 // errors
@@ -130,11 +117,11 @@ static char* not_found_error = "<html><body><head><titile>404 Not Found</title><
 static char* internal_error = "<html><body><head><titile>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
 static char* not_implemented_error = "<html><body><head><titile>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
 
-// According to RFC2616 method must be case sensitive
+// According to RFC2616 a method must be case sensitive
 // Implied the passing string is null terminated, but doesn't verified if there is '/0' at the end position
 // A caller must take care about null terminating
 
-http_method_t find_http_method(const char *sval)
+http_method_t str_to_http_method(const char *sval)
 {
     http_method_t result=INVALID_METHOD;
     switch (sval[0])
@@ -412,7 +399,16 @@ http_method_t find_http_method(const char *sval)
     return result;
 }
 
-http_protocol_version_t find_http_protocol_version(const char *sval)
+
+
+http_method_t str_to_method2(const char *sval)
+{
+
+
+}
+
+
+http_protocol_version_t str_to_http_protocol(const char *sval)
 {
 
     http_protocol_version_t result = INVALID_PROTO;
@@ -430,7 +426,7 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
                 case 'P':
                     switch (sval[4])
                     {
-                    case '\\':
+                    case '/':
                         switch (sval[5])
                         {
                         case '1':
@@ -440,10 +436,10 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
                                 switch (sval[7])
                                 {
                                 case '0':
-                                    result = HTTP10;
+                                    result = PROTO_HTTP10;
                                     break;
                                 case '1':
-                                    result = HTTP11;
+                                    result = PROTO_HTTP11;
                                     break;
                                 default:
                                     return INVALID_PROTO;
@@ -452,9 +448,6 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
                             default:
                                 return INVALID_PROTO;
                             }
-                            break;
-                        case '2':
-                            result = HTTP2;
                             break;
                         default:
                             return INVALID_PROTO;
@@ -480,53 +473,35 @@ http_protocol_version_t find_http_protocol_version(const char *sval)
         return INVALID_PROTO;
     }
 
-    return INVALID_PROTO;
+    return result;
 }
 
 // convert content_type into string
 // It is for supported MIMEs, you must ajust CONTENT_TYPE_MAX_LENGTH for new implemented types
 
-int content_type_to_str(char *str, http_content_type_t ct)
+int content_type_to_str(char *str, http_content_type_t ct, unsigned char str_len)
 {
-    size_t len = CONTENT_TYPE_MAX_LENGTH;
-    size_t content_type_length;
+    if(str_len < CONTENT_TYPE_MAX_LENGTH)
+        return 2;
     switch (ct)
     {
     case text_html:
-        content_type_length=strlen(content_type[0]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[0]);
+        strncpy(str,content_type[0], str_len);
         break;
     case image_jpg:
-        content_type_length=strlen(content_type[1]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[1]);
+        strncpy(str,content_type[1], str_len);
         break;
     case application_pdf:
-        content_type_length=strlen(content_type[2]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[2]);
+        strncpy(str,content_type[2], str_len);
         break;
     case image_png:
-        content_type_length=strlen(content_type[3]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[3]);
+        strncpy(str,content_type[3], str_len);
         break;
     case video_mpeg:
-        content_type_length=strlen(content_type[4]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[4]);
+        strncpy(str,content_type[4], str_len);
         break;
     case text_css:
-        content_type_length=strlen(content_type[5]);
-        if(len <= content_type_length)
-            return 1;
-        strcpy(str,content_type[5]);
+        strncpy(str,content_type[5], str_len);
         break;
     default:
         return 1;
@@ -534,29 +509,17 @@ int content_type_to_str(char *str, http_content_type_t ct)
     return 0;
 }
 // converts http code enumeration into c string
-int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt)
+int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt, unsigned char str_len)
 {
-    size_t len = HTTP_PROTOCOL_VERSION_MAX_LENGTH;
-    size_t protocol_size;
+    if(str_len < HTTP_PROTOCOL_VERSION_MAX_LENGTH)
+        return 2;
     switch(rt)
     {
-    case HTTP10:
-        protocol_size=strlen(http_protocol_version[0]);
-        if(len <= protocol_size)
-            return 1;
-        strcpy(str, http_protocol_version[0]);
+    case PROTO_HTTP10:
+        strncpy(str, http_protocol_version[0], str_len);
         break;
-    case HTTP11:
-        protocol_size=strlen(http_protocol_version[0]);
-        if(len <= protocol_size)
-            return 1;
-        strcpy(str, http_protocol_version[0]);
-        break;
-    case HTTP2:
-        protocol_size=strlen(http_protocol_version[1]);
-        if(len <= protocol_size)
-            return 1;
-        strcpy(str, http_protocol_version[1]);
+    case PROTO_HTTP11:
+        strncpy(str, http_protocol_version[1], str_len);
         break;
     default :
         return 1;
@@ -567,45 +530,35 @@ int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt)
 // convert reason code into string, ie 404 -> Not Found
 // maximum length is 17 for supported codes, you must ajust if implemented new
 
-int reason_code_to_str(char *str, http_reason_code_t rt)
+int reason_code_to_str(char *str, http_reason_code_t rt, unsigned char str_len)
 {
+    if(str_len < REASON_CODE_NAME_MAX_LENGTH)
+        return 2;
 
     switch(rt)
     {
-    case Bad_Request:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[0]))
-            return 1;
-        strcpy(str, reason_code_name[0]);
+    case REASON_BAD_REQUEST:
+        strncpy(str, reason_code_name[0], str_len);
         break;
-    case Not_found:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[1]))
-            return 1;
-        strcpy(str,reason_code_name[1]);
+    case REASON_NOT_FOUND:
+        strncpy(str,reason_code_name[1], str_len);
         break;
-    case Entity_Too_Large:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[2]))
-            return 1;
-        strcpy(str,reason_code_name[2]);
+    case REASON_ENTITY_TOO_LARGE:
+        strncpy(str,reason_code_name[2], str_len);
         break;
-    case OK:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[3]))
-            return 1;
-        strcpy(str,reason_code_name[3]);
+    case REASON_OK:
+        strncpy(str,reason_code_name[3], str_len);
         break;
-    case Internal_Error:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[4]))
-            return 1;
-        strcpy(str,reason_code_name[4]);
+    case REASON_INTERNAL_ERROR:
+        strncpy(str,reason_code_name[4], str_len);
         break;
-    case Not_implemented:
-        if(REASON_CODE_NAME_MAX_LENGTH < strlen(reason_code_name[5]))
-            return 1;
-        strcpy(str,reason_code_name[5]);
+    case REASON_NOT_IMPLEMENTED:
+        strncpy(str,reason_code_name[5], str_len);
         break;
     }
     return 0;
 }
-http_general_header_t find_http_general_header(const char *gh)
+http_general_header_t str_to_http_general_header(const char *gh)
 {
     http_general_header_t result = Cache_Control; /* value corresponding to etable[0] */
     for (u_int_t i = 0; general_header[i] != NULL; ++i, ++result)
@@ -614,7 +567,7 @@ http_general_header_t find_http_general_header(const char *gh)
     return INVALID_GENERAL_HEADER;
 }
 
-http_entity_header_t find_http_entity_header(const char *eh)
+http_entity_header_t str_to_http_entity_header(const char *eh)
 {
     http_entity_header_t result = Allow; /* value corresponding to etable[0] */
     for (u_int_t i = 0; entity_header[i] != NULL; ++i, ++result)
@@ -622,7 +575,7 @@ http_entity_header_t find_http_entity_header(const char *eh)
             return result;
     return INVALID_ENTITY_HEADER;
 }
-http_response_header_t find_http_response_header(const char *resph)
+http_response_header_t str_to_http_response_header(const char *resph)
 {
     http_response_header_t result = Accept_Ranges; /* value corresponding to etable[0] */
     for (u_int_t i = 0; response_header[i] != NULL; ++i, ++result)
@@ -631,28 +584,10 @@ http_response_header_t find_http_response_header(const char *resph)
     return INVALID_RESPONSE_HEADER;
 }
 
-http_request_header_t find_http_request_header_app5(char* v)
-{
-    //    "Accept:
-    //    "Accept-Charset:
-    //    "Accept-Encoding:
-    //    "Accept-Language:
-    //    "Authorization:
-    int j = 0, i = 0;
-
-    for (i = 0; request_header[j] != NULL && v[i] != ':';)
-    {
-        if(TOLOWERCASE(v[i]) != request_header[j][i] )
-            j++;
-        else i++;
-    }
-    return (v[i] == ':' ? j :  INVALID_REQUEST_HEADER);
-
-}
-
-http_request_header_t find_http_request_header(const char *h)
+http_request_header_t str_to_http_request_header(const char *h)
 {
 
+    http_request_header_t result = INVALID_REQUEST_HEADER;
     switch(h[0])
     {
     //Authorization:
@@ -706,11 +641,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                     {
                                                     case 'N':
                                                     case 'n':
-                                                        switch (h[13])
-                                                        {
-                                                        case ':':
-                                                            return Authorization;
-                                                        }
+                                                        result = Authorization;
                                                         break;
                                                     }
                                                     break;
@@ -753,10 +684,9 @@ http_request_header_t find_http_request_header(const char *h)
                         {
                         case 'T':
                         case 't':
+                            result = Accept;
                             switch (h[6])
                             {
-                            case ':':
-                                return Accept;
                             case '-':
                                 switch(h[7])
                                 {//Accept-Charset
@@ -786,11 +716,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                         {
                                                         case 'T':
                                                         case 't':
-                                                            switch (h[14])
-                                                            {
-                                                            case ':':
-                                                                return Accept_Charset;
-                                                            }
+                                                            result = Accept_Charset;
                                                             break;
                                                         }
                                                         break;
@@ -835,17 +761,10 @@ http_request_header_t find_http_request_header(const char *h)
                                                             {
                                                             case 'G':
                                                             case 'g':
-                                                                switch (h[15])
-                                                                {
-                                                                case ':':
-                                                                    return Accept_Encoding;
-
-                                                                }
+                                                                result=Accept_Encoding;
                                                                 break;
-
                                                             }
                                                             break;
-
                                                         }
                                                         break;
 
@@ -893,33 +812,21 @@ http_request_header_t find_http_request_header(const char *h)
                                                             {
                                                             case 'E':
                                                             case 'e':
-                                                                switch (h[15])
-                                                                {
-                                                                case ':':
-                                                                    return Accept_Language;
-
-                                                                }
+                                                                result=Accept_Language;
                                                                 break;
-
                                                             }
                                                             break;
-
                                                         }
                                                         break;
-
                                                     }
                                                     break;
-
                                                 }
                                                 break;
-
                                             }
                                             break;
-
                                         }
                                         break;
                                     }
-
                                     break;
                                 }
                                 break;
@@ -957,12 +864,7 @@ http_request_header_t find_http_request_header(const char *h)
                         {
                         case 'T':
                         case 't':
-                            switch (h[6])
-                            {
-                            case ':':
-                                return Expect;
-
-                            }
+                            result=Expect;
                             break;
                         }
                         break;
@@ -988,17 +890,10 @@ http_request_header_t find_http_request_header(const char *h)
                 {
                 case 'M':
                 case 'm':
-                    switch (h[4])
-                    {
-                    case ':':
-                        return From;
-
-                    }
+                    result=From;
                     break;
-
                 }
                 break;
-
             }
             break;
         }
@@ -1017,12 +912,7 @@ http_request_header_t find_http_request_header(const char *h)
                 {
                 case 'T':
                 case 't':
-                    switch (h[4])
-                    {
-                    case ':':
-                        return Host;
-
-                    }
+                    result = Host;
                     break;
                 }
                 break;
@@ -1057,11 +947,7 @@ http_request_header_t find_http_request_header(const char *h)
                             {
                             case 'C':
                             case 'c':
-                                switch (h[7])
-                                {
-                                case ':':
-                                    return If_Match;
-                                }
+                                result = If_Match;
                                 break;
                             }
                             break;
@@ -1116,11 +1002,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                                     {
                                                                     case 'E':
                                                                     case 'e':
-                                                                        switch (h[17])
-                                                                        {
-                                                                        case ':':
-                                                                            return If_Modified_Since;
-                                                                        }
+                                                                        result = If_Modified_Since;
                                                                         break;
                                                                     }
                                                                     break;
@@ -1140,7 +1022,6 @@ http_request_header_t find_http_request_header(const char *h)
                                         break;
                                     }
                                     break;
-
                                 }
                                 break;
                             }
@@ -1189,29 +1070,18 @@ http_request_header_t find_http_request_header(const char *h)
                                                     {
                                                     case 'H':
                                                     case 'h':
-                                                        switch (h[13])
-                                                        {
-                                                        case ':':
-                                                            return If_None_Match;
-
-                                                        }
+                                                        result = If_None_Match;
                                                         break;
-
                                                     }
                                                     break;
-
                                                 }
                                                 break;
-
                                             }
                                             break;
-
                                         }
                                         break;
-
                                     }
                                     break;
-
                                 }
                                 break;
                             }
@@ -1239,12 +1109,7 @@ http_request_header_t find_http_request_header(const char *h)
                                 switch (h[7])
                                 {
                                 case 'E':
-                                case 'e':
-                                    switch (h[8])
-                                    {
-                                    case ':':
-                                        return If_Range;
-                                    }
+                                    result = If_Range;
                                     break;
                                 }
                                 break;
@@ -1317,11 +1182,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                                             {
                                                                             case 'E':
                                                                             case 'e':
-                                                                                switch (h[19])
-                                                                                {
-                                                                                case ':':
-                                                                                    return If_Unmodified_Since;
-                                                                                }
+                                                                                result = If_Unmodified_Since;
                                                                                 break;
                                                                             }
                                                                             break;
@@ -1405,11 +1266,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                 {
                                                 case 'S':
                                                 case 's':
-                                                    switch (h[12])
-                                                    {
-                                                    case ':':
-                                                        return Max_Forwards;
-                                                    }
+                                                    result = Max_Forwards;
                                                     break;
                                                 }
                                                 break;
@@ -1508,11 +1365,7 @@ http_request_header_t find_http_request_header(const char *h)
                                                                             {
                                                                             case 'N':
                                                                             case 'n':
-                                                                                switch (h[19])
-                                                                                {
-                                                                                case ':':
-                                                                                    return Proxy_Authorization;
-                                                                                }
+                                                                                result = Proxy_Authorization;
                                                                                 break;
                                                                             }
                                                                             break;
@@ -1571,11 +1424,7 @@ http_request_header_t find_http_request_header(const char *h)
                     {
                     case 'E':
                     case 'e':
-                        switch (h[5])
-                        {
-                        case ':':
-                            return Range;
-                        }
+                        result = Range;
                         break;
                     }
                     break;
@@ -1606,11 +1455,7 @@ http_request_header_t find_http_request_header(const char *h)
                             {
                             case 'R':
                             case 'r':
-                                switch (h[8])
-                                {
-                                case ':':
-                                    return Referer;
-                                }
+                                result = Referer;
                                 break;
                             }
                             break;
@@ -1631,57 +1476,49 @@ http_request_header_t find_http_request_header(const char *h)
         {
         case 'E':
         case 'e':
-            switch (h[2])
-            {
-            case ':':
-                return TE;
-            }
+            result = TE;
             break;
         }
         break;
         //User-Agent
     case 'U':
     case 'u':
-        switch (h[2])
+        switch (h[1])
         {
         case 'S':
         case 's':
-            switch (h[3])
+            switch (h[2])
             {
             case 'E':
             case 'e':
-                switch (h[4])
+                switch (h[3])
                 {
                 case 'R':
                 case 'r':
-                    switch (h[5])
+                    switch (h[4])
                     {
                     case '-':
-                        switch (h[6])
+                        switch (h[5])
                         {
                         case 'A':
                         case 'a':
-                            switch (h[7])
+                            switch (h[6])
                             {
                             case 'G':
                             case 'g':
-                                switch (h[8])
+                                switch (h[7])
                                 {
                                 case 'E':
                                 case 'e':
-                                    switch (h[9])
+                                    switch (h[8])
                                     {
                                     case 'N':
                                     case 'n':
-                                        switch (h[10])
+                                        switch (h[9])
                                         {
                                         case 'T':
                                         case 't':
-                                            switch (h[11])
-                                            {
-                                            case ':':
-                                                return User_Agent;
-                                            }
+                                            result= User_Agent;
                                             break;
                                         }
                                         break;
@@ -1703,59 +1540,43 @@ http_request_header_t find_http_request_header(const char *h)
         break;
     }
 
-    return INVALID_REQUEST_HEADER;
+    return result;
 
 }
 
 // function must pass args char* str buffer not more than HTTP_HEADER_NAME_MAX_LEN
-int http_general_header_to_str(http_general_header_t h, char* str)
+int http_general_header_to_str(http_general_header_t h, char* str, unsigned char str_len)
 {
+    if(str_len < HTTP_HEADER_NAME_MAX_LEN)
+        return 2;
     switch (h)
     {
     case Cache_Control:
-        if(strlen(general_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[0]);
+        strncpy(str, general_header[0], str_len);
         break;
     case Connection:
-        if(strlen(general_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[1]);
+        strncpy(str, general_header[1], str_len);
         break;
     case Date:
-        if(strlen(general_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[2]);
+        strncpy(str, general_header[2], str_len);
         break;
     case Pragma:
-        if(strlen(general_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[3]);
+        strncpy(str, general_header[3], str_len);
         break;
     case Trailer:
-        if(strlen(general_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[4]);
+        strncpy(str, general_header[4], str_len);
         break;
     case Transfer_Encoding:
-        if(strlen(general_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[5]);
+        strncpy(str, general_header[5], str_len);
         break;
     case Upgrade:
-        if(strlen(general_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[6]);
+        strncpy(str, general_header[6], str_len);
         break;
     case Via:
-        if(strlen(general_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[7]);
+        strncpy(str, general_header[7], str_len);
         break;
     case Warning:
-        if(strlen(general_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, general_header[8]);
+        strncpy(str, general_header[8], str_len);
         break;
     default:
         return 1;
@@ -1763,168 +1584,112 @@ int http_general_header_to_str(http_general_header_t h, char* str)
     return 0;
 }
 
-int http_request_header_to_str(http_request_header_t h, char* str)
+int http_request_header_to_str(http_request_header_t h, char* str, unsigned char str_len)
 {
+    if(str_len < HTTP_HEADER_NAME_MAX_LEN)
+        return 2;
     switch (h)
     {
     case Accept:
-        if(strlen(request_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[0]);
+        strncpy(str, request_header[0], str_len);
         break;
     case Accept_Charset:
-        if(strlen(request_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[1]);
+        strncpy(str, request_header[1], str_len);
         break;
     case Accept_Encoding:
-        if(strlen(request_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[2]);
+        strncpy(str, request_header[2], str_len);
         break;
     case Accept_Language:
-        if(strlen(request_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[3]);
+        strncpy(str, request_header[3], str_len);
         break;
     case Authorization:
-        if(strlen(request_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[4]);
+        strncpy(str, request_header[4], str_len);
         break;
     case Expect:
-        if(strlen(request_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[5]);
+        strncpy(str, request_header[5], str_len);
         break;
     case From:
-        if(strlen(request_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[6]);
+        strncpy(str, request_header[6], str_len);
         break;
     case Host:
-        if(strlen(request_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[7]);
+        strncpy(str, request_header[7], str_len);
         break;
     case If_Match:
-        if(strlen(request_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[8]);
+        strncpy(str, request_header[8], str_len);
         break;
     case If_Modified_Since:
-        if(strlen(request_header[9]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[9]);
+        strncpy(str, request_header[9], str_len);
         break;
     case If_None_Match:
-        if(strlen(request_header[10]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[10]);
+        strncpy(str, request_header[10], str_len);
         break;
     case If_Range:
-        if(strlen(request_header[11]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[11]);
+        strncpy(str, request_header[11], str_len);
         break;
     case If_Unmodified_Since:
-        if(strlen(request_header[12]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[12]);
+        strncpy(str, request_header[12], str_len);
         break;
     case Max_Forwards:
-        if(strlen(request_header[13]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[13]);
+        strncpy(str, request_header[13], str_len);
         break;
     case Proxy_Authorization:
-        if(strlen(request_header[14]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[14]);
+        strncpy(str, request_header[14], str_len);
         break;
     case Range:
-        if(strlen(request_header[15]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[15]);
+        strncpy(str, request_header[15], str_len);
         break;
     case Referer:
-        if(strlen(request_header[16]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[16]);
+        strncpy(str, request_header[16], str_len);
         break;
     case TE:
-        if(strlen(request_header[17]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[17]);
+        strncpy(str, request_header[17], str_len);
         break;
     case User_Agent:
-        if(strlen(request_header[18]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, request_header[18]);
+        strncpy(str, request_header[18], str_len);
         break;
     default:
         return 1;
-
     }
 
     return 0;
 }
 
-int http_entity_header_to_str(http_entity_header_t h, char* str)
+int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char str_len)
 {
+    if(str_len < HTTP_HEADER_NAME_MAX_LEN)
+        return 2;
     switch (h)
     {
-    case     Allow:
-        if(strlen(entity_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[0]);
+    case Allow:
+        strncpy(str, entity_header[0], str_len);
         break;
     case Content_Encoding:
-        if(strlen(entity_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[1]);
+        strncpy(str, entity_header[1], str_len);
         break;
     case Content_Language:
-        if(strlen(entity_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[2]);
+        strncpy(str, entity_header[2], str_len);
         break;
     case Content_Length:
-        if(strlen(entity_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[3]);
+        strncpy(str, entity_header[3], str_len);
         break;
     case Content_Location:
-        if(strlen(entity_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[4]);
+        strncpy(str, entity_header[4], str_len);
         break;
     case Content_MD5:
-        if(strlen(entity_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[5]);
+        strncpy(str, entity_header[5], str_len);
         break;
     case Content_Range:
-        if(strlen(entity_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[6]);
+        strncpy(str, entity_header[6], str_len);
         break;
     case Content_Type:
-        if(strlen(entity_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[7]);
+        strncpy(str, entity_header[7], str_len);
         break;
     case Expires:
-        if(strlen(entity_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[8]);
+        strncpy(str, entity_header[8], str_len);
         break;
     case Last_Modified:
-        if(strlen(entity_header[9]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, entity_header[9]);
+        strncpy(str, entity_header[9], str_len);
         break;
-
     default:
         return 1;
 
@@ -1932,62 +1697,45 @@ int http_entity_header_to_str(http_entity_header_t h, char* str)
 
     return 0;
 }
-int http_response_header_to_str(http_response_header_t h, char* str)
+int http_response_header_to_str(http_response_header_t h, char* str, unsigned char str_len)
 {
+    if(str_len < HTTP_HEADER_NAME_MAX_LEN)
+        return 2;
     switch(h)
     {
     case Accept_Ranges:
-        if(strlen(response_header[0]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[0]);
+        strncpy(str, response_header[0], str_len);
         break;
     case  Age:
-        if(strlen(response_header[1]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[1]);
+        strncpy(str, response_header[1], str_len);
         break;
     case   ETag:
-        if(strlen(response_header[2]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[2]);
+        strncpy(str, response_header[2], str_len);
         break;
     case Location:
-        if(strlen(response_header[3]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[3]);
+        strncpy(str, response_header[3], str_len);
         break;
     case Proxy_Authenticate:
-        if(strlen(response_header[4]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[4]);
+        strncpy(str, response_header[4], str_len);
         break;
     case Retry_After:
-        if(strlen(response_header[5]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[5]);
+        strncpy(str, response_header[5], str_len);
         break;
     case Server:
-        if(strlen(response_header[6]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[6]);
+        strncpy(str, response_header[6], str_len);
         break;
     case Vary:
-        if(strlen(response_header[7]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[7]);
+        strncpy(str, response_header[7], str_len);
         break;
     case  WWW_Authenticate:
-        if(strlen(response_header[8]) > HTTP_HEADER_NAME_MAX_LEN)
-            return 1;
-        strcpy(str, response_header[8]);
+        strncpy(str, response_header[8], str_len);
         break;
-
     default:
         return 1;
     }
     return 0;
 }
-http_header_node_t* init_http_request_header_node(const char http_header_name[HTTP_HEADER_NAME_MAX_LEN], const char http_header_value[HTTP_HEADER_VALUE_MAX_LEN])
+http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[])
 {
     http_header_node_t* t;
     char http_header[HTTP_HEADER_NAME_MAX_LEN];
@@ -1999,17 +1747,17 @@ http_header_node_t* init_http_request_header_node(const char http_header_name[HT
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
 
-    if((find_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
+    if((t->http_header=str_to_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
         t->type=http_general_header;
-    else if(find_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
+    else if((t->http_header=str_to_http_entity_header(http_header)) != INVALID_ENTITY_HEADER)
         t->type=http_entity_header;
-    else if(find_http_request_header(http_header) != INVALID_REQUEST_HEADER)
+    else if((t->http_header=str_to_http_request_header(http_header)) != INVALID_REQUEST_HEADER)
         t->type=http_request_header;
     else return NULL;
 
     return t;
 }
-http_header_node_t* init_http_response_header_node(const char http_header_name[HTTP_HEADER_NAME_MAX_LEN], const char http_header_value[HTTP_HEADER_VALUE_MAX_LEN])
+http_header_node_t* init_http_response_header_node(const char http_header_name[], const char http_header_value[])
 {
     http_header_node_t* t;
     char http_header[HTTP_HEADER_NAME_MAX_LEN];
@@ -2021,31 +1769,31 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[H
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
 
-    if((find_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
+    if((str_to_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
         t->type=http_general_header;
-    else if(find_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
+    else if(str_to_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
         t->type=http_entity_header;
-    else if(find_http_response_header(http_header) != INVALID_REQUEST_HEADER)
+    else if(str_to_http_response_header(http_header) != INVALID_RESPONSE_HEADER)
         t->type=http_request_header;
     else return NULL;
 
     return t;
 }
-void destroy_http_headers_node(http_header_node_t* header_node)
-{
+void destroy_http_header_node(http_header_node_t* header_node)
+{   
     free(header_node);
 
     return;
 }
 
-http_headers_list_t* init_http_headers_list(const http_header_node_t* first_node)
+http_headers_list_t* init_http_headers_list(http_header_node_t* first_node)
 {
     http_headers_list_t* hl;
     if((hl=(http_headers_list_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
     hl->first=first_node;
     hl->limit=64;
-    hl->capacity=0;
+    hl->capacity=1;
 
     return hl;
 }
@@ -2057,16 +1805,16 @@ void destroy_http_headers_list(http_headers_list_t* hl)
     while(current->next != NULL)
     {
         tmp=current->next;
-        destroy_http_headers_node(current);
+        destroy_http_header_node(current);
         current=tmp;
     }
-    destroy_http_headers_node(current);
+    destroy_http_header_node(current);
 
     free(hl);
     return;
 }
 
-int add_http_header_to_list(http_headers_list_t* list, const http_header_node_t* header)
+int push_http_header_to_list(http_headers_list_t* list, http_header_node_t* header)
 {
     http_header_node_t* current;
 
@@ -2076,11 +1824,35 @@ int add_http_header_to_list(http_headers_list_t* list, const http_header_node_t*
         current=current->next;
 
     current->next=header;
+    list->capacity++;
 
     return 0;
 }
 
-int create_http_request(http_request_t* request, const http_headers_list_t* list, http_request_line_t req_line)
+
+http_request_t* init_http_request()
+{
+    http_request_t* hr;
+
+    if((hr=(http_request_t*)malloc(sizeof(http_request_t))) == NULL)
+        return NULL;
+    hr->headers=NULL;
+
+    return hr;
+}
+void delete_http_request(http_request_t* hr)
+{
+    if (hr == NULL)
+        return;
+    // destroy all objects
+    if(hr->headers != NULL)
+        destroy_http_headers_list(hr->headers);
+
+    free(hr);
+    return;
+}
+
+int create_http_request(http_request_t* request, http_headers_list_t* list, http_request_line_t req_line)
 {
     request->headers=list;
     request->req_line.method=req_line.method;
@@ -2098,25 +1870,25 @@ int create_http_response(http_response_t *response, http_headers_list_t* list, h
 
     return 0;
 }
-int find_header_name_value_by_type(const http_header_node_t* node, char name[HTTP_HEADER_NAME_MAX_LEN], char value[HTTP_HEADER_VALUE_MAX_LEN] )
+int header_name_to_str_value_by_type(const http_header_node_t* node, char name[], char value[] )
 {
 
     switch (node->type)
     {
     case http_entity_header:
-        http_entity_header_to_str(node->http_header, name);
+        http_entity_header_to_str(node->http_header, name, HTTP_HEADER_NAME_MAX_LEN);// TODO double-check length
         strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
         break;
     case http_general_header:
-        http_general_header_to_str(node->http_header, name);
+        http_general_header_to_str(node->http_header, name, HTTP_HEADER_NAME_MAX_LEN);
         strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
         break;
     case http_request_header:
-        http_request_header_to_str(node->http_header, name);
+        http_request_header_to_str(node->http_header, name, HTTP_HEADER_NAME_MAX_LEN);
         strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
         break;
     case http_response_header:
-        http_response_header_to_str(node->http_header,name);
+        http_response_header_to_str(node->http_header,name, HTTP_HEADER_NAME_MAX_LEN);
         break;
     default:
         return 1;
@@ -2125,53 +1897,77 @@ int find_header_name_value_by_type(const http_header_node_t* node, char name[HTT
     return 0;
 }
 //Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
-int create_status_line(char* str, http_protocol_version_t p, http_reason_code_t r)
+int status_line_to_str(char* str, http_protocol_version_t p, http_reason_code_t r, unsigned char str_len)
 {
-    char reason_str[REASON_CODE_NAME_MAX_LENGTH]={0};
-    char reason_code_str[4]={0};
+    char reason_str[REASON_CODE_NAME_MAX_LENGTH]={0};// text description
 
     // convert int code into name of reason, ie. 501 -> "501 Not Implemented\0"
-    if((reason_code_to_str(reason_str, r)))
+    if((reason_code_to_str(reason_str, r, REASON_CODE_NAME_MAX_LENGTH)))
         return -1;
 
-    http_ptorocol_code_to_str(str,p);
-    strcat(str, SP);// adding space separator
-    strcat(str, reason_code_str); //  writing code reason
-    strcat(str, SP); // adding space
-    strcat(str, reason_str);
+    http_ptorocol_code_to_str(str,p, str_len);// HTTP/1.1
+    strncat(str, SP, str_len);// adding space separator
+    strncat(str, reason_str, str_len);
 
     return 0;
 }
 
 /* Requests */
-// Function breaks down the request into different lines(replaces \r\n by \0)
-int parse_raw_data(http_request_t *req, raw_client_data_t *rd)
+
+
+int process_http_data(http_request_t *req, char *rd)
 {
     if(rd == NULL)
         return -1;
     char *tok;
     u_int_t count=0;
+    http_header_node_t* header_node=NULL;
+    http_headers_list_t* header_list=NULL;
+    http_request_line_t req_line;
+
     char header[HTTP_HEADER_NAME_MAX_LEN], value[HTTP_HEADER_VALUE_MAX_LEN];
 
     char *saveptr=NULL;
 
     //strtok_r is MT-Safe function
-    if((tok = strtok_r(rd->initial_data, CRLF, &saveptr)) == NULL)// search for Request-Line
+    if((tok = strtok_r(rd, CRLF, &saveptr)) == NULL)// search for Request-Line
+    {
+        req->parsing_result=1;
         return 1;
+    }
 
-    if (strlen(tok) >= REQUEST_LINE_LENGTH)
-        return 1;
 
-    if((parse_request_line(&(req->req_line), tok)) != 0)
+    if((parse_request_line(&req_line, tok)) != 0)
+    {
+        req->parsing_result=1;
         return 1;
+    }
 
     while(((tok = strtok_r(NULL, CRLF, &saveptr)) != NULL) && count < HEADERS_LIMIT)
     {
         if((parse_http_header_line(tok, header, value)) != 0)
+        {
+            req->parsing_result=1;
             return 1;
+        }
+        if(count == 0)
+        {
+            if((header_node=init_http_request_header_node(header, value)) == NULL)
+                return 1;
+            if((header_list=init_http_headers_list(header_node)) == NULL)
+                return 1;
+        }
+        else
+        {
+            if((header_node=init_http_request_header_node(header, value)) == NULL)
+                return 1;
+            push_http_header_to_list(header_list, header_node);
+        }
+
         count ++;
     }
-
+    create_http_request(req,header_list,req_line);
+    // TODO return a pointer to message_body if request method allows this(i.e.POST)
     return 0;
 }
 // Function parses Header Line like
@@ -2181,7 +1977,7 @@ int parse_http_header_line(char* header_line, char* header, char *value)
     char *saveptr=NULL;
     char *tok;
     // Header
-    if((tok=strtok_r(header_line, SP, &saveptr)) == NULL)
+    if((tok=strtok_r(header_line, "SP:", &saveptr)) == NULL)
         return 1;
 
     strncpy(header, tok, HTTP_HEADER_NAME_MAX_LEN);
@@ -2195,30 +1991,37 @@ int parse_http_header_line(char* header_line, char* header, char *value)
 }
 // Function parses Request Line like
 // GET /index.php HTTP/1.1
-int parse_request_line(http_request_line_t* rl, const char* rc)
+int parse_request_line(http_request_line_t* rl, char* rc)
 {
     char *saveptr=NULL;
     char *tok;
     // Request Method
     if((tok=strtok_r(rc, SP, &saveptr)) == NULL)
         return 1;
-    if((rl->method=find_http_method(tok)) == INVALID_METHOD)
+    if((rl->method=str_to_http_method(tok)) == INVALID_METHOD)
         return INVALID_METHOD;
-    // Request URI. TODO There is no validating if URI is correct
-    if(((tok=strtok_r(NULL, SP, &saveptr)) == NULL) ||  tok[0] != '/')
+    // URI
+    // According to RFC2616 it may be
+    // Request-URI    = "*" | absoluteURI | abs_path | authority
+    // * asterisk(allowed in OPTIONS method)
+    // absoluteURI like http://www.ya.ru(when request to proxy)
+    // abs_path like /index.html
+    // authority(for CONNECT method)
+    if(( (tok=strtok_r(NULL, SP, &saveptr)) == NULL))
         return 1;
+
     strncpy(rl->request_URI, tok, REQUEST_URI_STRING_LENGTH);
 
     // Request Protocol
     if((tok=strtok_r(NULL, "", &saveptr)) == NULL)
         return 1;
-    if((rl->http_version=find_http_protocol_version(tok)) == INVALID_PROTO)
+    if((rl->http_version=str_to_http_protocol(tok)) == INVALID_PROTO)
         return INVALID_PROTO;
 
     return 0;
 }
 
-int get_current_date_string(char* date)
+int get_current_date_str(char* date)
 {
 
     time_t t = time(NULL);
@@ -2229,15 +2032,15 @@ int get_current_date_string(char* date)
     return 0;
 }
 
-int create_date_header(char* dheader)
+int create_date_header_to_str(char* dheader, unsigned char dheader_len)
 {
     //temporary constant date
     char date[128]={0};
-    strncpy(dheader, "Date: ", 6);
+    strncpy(dheader, "Date: ", dheader_len);
     //strncpy(dheader, "Date: Fri Dec  7 15:37:41 2018", 48);
-    get_current_date_string(date);
+    get_current_date_str(date);
     // return 0;
-    return strncat(dheader, date, 128) ? 0 : 1;
+    return strncat(dheader, date, dheader_len) ? 0 : 1;
 }
 
 int create_header_name_of_server(char* server_name, size_t len)
@@ -2288,7 +2091,7 @@ http_content_type_t get_file_MIME_type(const char* filename)
 
 }
 
-int convert_file_MIME_type_in_str(char* content_type, const char* filename)
+int file_MIME_type_to_str(char* content_type, const char* filename, unsigned char type_len)
 {
     http_content_type_t ct;
 
@@ -2298,7 +2101,7 @@ int convert_file_MIME_type_in_str(char* content_type, const char* filename)
         return -1;
     }
 
-    if((content_type_to_str(content_type, ct)) != 0)
+    if((content_type_to_str(content_type, ct, type_len)) != 0)
     {
         WriteLog("Insufficient buffer length for writing Content Type, content_type=%d", ct);
         return -1;
@@ -2306,3 +2109,51 @@ int convert_file_MIME_type_in_str(char* content_type, const char* filename)
 
     return 0;
 }
+
+int response_to_str(char* response, const http_response_t* resp)
+{
+
+}
+
+
+int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
+{
+    if(str_len < HTTP_METHOD_MAX_LEN)
+        return 2;
+    switch (h)
+    {
+    case GET:
+        strncpy(str, http_method[0], str_len);
+        break;
+    case POST:
+        strncpy(str, http_method[1], str_len);
+        break;
+    case HEAD:
+        strncpy(str, http_method[2], str_len);
+        break;
+    case PUT:
+        strncpy(str, http_method[3], str_len);
+        break;
+    case DELETE:
+        strncpy(str, http_method[4], str_len);
+        break;
+    case CONNECT:
+        strncpy(str, http_method[5], str_len);
+        break;
+    case OPTIONS:
+        strncpy(str, http_method[6], str_len);
+        break;
+    case TRACE:
+        strncpy(str, http_method[7], str_len);
+        break;
+    case PATCH:
+        strncpy(str, http_method[8], str_len);
+        break;
+    default:
+        return 1;
+
+    }
+
+    return 0;
+}
+

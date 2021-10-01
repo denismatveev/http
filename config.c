@@ -13,12 +13,17 @@
  * - end leaves are black
  * - Child of red is black
  * - Black depth is constant
- * For destroying the tree queue is used(as linked list) to store children of visited nodes and then process them
+ * For destroying the tree a queue is used(as a linked list) to store children of visited nodes and then processing them
  */
 
 // init_section() is initializing section
 // section is assoc array to store virtual host settings like index, root directory etc
 // section is RB tree node as well
+// General and Default sections are not nodes of red-black tree
+// The logic is the following: search for hostname in rbtree, if nothing found, use default section
+// General section is used only at the launch moment
+
+
 /* Here is an example of server config */
 /*
 # config
@@ -41,11 +46,14 @@ indexfile=index.html;
 <Default>
 servername=site3.example.com;
 rootdir=/var/www/site3;
-indexfile=index.htm;
+indexfile=index.html;
 </Default>
 # end of config
 */
-
+// TODO checking if params are duplicated(for example two rootdir)
+// duplicated sitename can be considered as alias
+// duplicated indexfile is also can be considered as additional file for searching, let's say index.html and index.php
+// TODO show string number with wrong param in config
 char *hosts_reserved_names[] = {
     "rootdir",
     "indexfile",
