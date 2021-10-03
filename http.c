@@ -6,110 +6,63 @@
 
 /* General */
 
- static const char *http_protocol_version[] =
+static const char *http_protocol_version[] =
 {
-#define XX(num, name, proto_str) #proto_str,
-HTTP_PROTOCOL(XX)
-#undef XX
+    #define XX(num, name, proto_str) #proto_str,
+    HTTP_PROTOCOL(XX)
+    #undef XX
 };
 static char *reason_code_name[] =
 {
-#define XX(num, name, reason_code_str) #reason_code_str,
-HTTP_REASON_CODE(XX)
-#undef XX
+    #define XX(num, name, reason_code_str) #reason_code_str,
+    HTTP_REASON_CODE(XX)
+    #undef XX
 };
 
-static char *content_type[] =
+static char *content_type_str[] =
 {
-    "text/html",
-    "image/jpg",
-    "application/pdf",
-    "image/png",
-    "video/mpeg",
-    "text/css",
-    NULL
+    #define XX(num, name, content_type_str) #content_type_str,
+    HTTP_CONTENT_TYPE(XX)
+    #undef XX
+};
+
+static char *general_header_str[] =
+{
+    #define XX(num, name, general_header_str) #general_header_str,
+    HTTP_GENERAL_HEADER(XX)
+    #undef XX
 };
 static char *file_ext[] = {".html", ".jpg", ".pdf", ".png", ".mpeg", ".css", NULL};
-// the following is used in both request and response
-static char* general_header[] =
+
+static char* response_header_str[] =
 {
-    "Cache-Control:",
-    "Connection:",
-    "Date:",
-    "Pragma:",
-    "Trailer:",
-    "Transfer-Encoding:",
-    "Upgrade:",
-    "Via:",
-    "Warning:",
-    NULL
-};
-// the following is used in response and therefore contains colon and space
-static char* response_header[] =
-{
-    "Accept-Ranges:",
-    "Age:",
-    "ETag:",
-    "Location:",
-    "Proxy-Authenticate:",
-    "Retry-After:",
-    "Server:",
-    "Vary:",
-    "WWW-Authenticate:",
-    NULL
-};
-// the following is used in both request and response
-static char* entity_header[] =
-{
-    "Allow:",
-    "Content-Encoding:",
-    "Content-Language:",
-    "Content-Length:",
-    "Content-Location:",
-    "Content-MD5:",
-    "Content-Range:",
-    "Content-Type:",
-    "Expires:",
-    "Last-Modified:",
-    NULL
+    #define XX(num, name, response_header_str) #response_header_str,
+    HTTP_RESPONSE_HEADER(XX)
+    #undef XX
 };
 
-static char* request_header[] =
+// the following is used in both request and response
+
+static char* entity_header_str[] =
 {
-    "Accept:",
-    "Accept-Charset:",
-    "Accept-Encoding:",
-    "Accept-Language:",
-    "Authorization:",
-    "Expect:",
-    "From:",
-    "Host:",
-    "If-Match:",
-    "If-Modified-Since:",
-    "If-None-Match:",
-    "If-Range:",
-    "If-Unmodified-Since:",
-    "Max-Forwards:",
-    "Proxy-Authorization:",
-    "Range:",
-    "Referer:",
-    "TE:",
-    "User-Agent:",
-    NULL
+    #define XX(num, name, entity_header_str) #entity_header_str,
+    HTTP_ENTITY_HEADER(XX)
+    #undef XX
 };
-static char* http_method[] =
+
+static char* request_header_str[] =
 {
-    "GET",
-    "POST",
-    "HEAD",
-    "PUT",
-    "DELETE",
-    "CONNECT",
-    "OPTIONS",
-    "TRACE",
-    "PATCH",
-    NULL
+    #define XX(num, name, request_header_str) #request_header_str,
+    HTTP_REQUEST_HEADER(XX)
+    #undef XX
 };
+static char* http_method_str[] =
+{
+    #define XX(num, name, http_method_str) #http_method_str,
+    HTTP_METHOD(XX)
+    #undef XX
+};
+
 // errors
 
 static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>";
@@ -134,7 +87,7 @@ http_method_t str_to_http_method(const char *sval)
             switch (sval[2])
             {
             case 'T':
-                result = GET;
+                result = HTTP_METHOD_GET;
                 break;
             default:
                 return INVALID_METHOD;
@@ -156,7 +109,7 @@ http_method_t str_to_http_method(const char *sval)
                 switch(sval[3])
                 {
                 case 'T':
-                    result = POST;
+                    result = HTTP_METHOD_POST;
                     break;
                 default:
                     return INVALID_METHOD;
@@ -172,7 +125,7 @@ http_method_t str_to_http_method(const char *sval)
             switch (sval[2])
             {
             case 'T':
-                result = PUT;
+                result = HTTP_METHOD_PUT;
                 break;
             default:
                 return INVALID_METHOD;
@@ -189,7 +142,7 @@ http_method_t str_to_http_method(const char *sval)
                     switch(sval[4])
                     {
                     case 'H':
-                        result = PATCH;
+                        result = HTTP_METHOD_PATCH;
                         break;
                     default:
                         return INVALID_METHOD;
@@ -218,7 +171,7 @@ http_method_t str_to_http_method(const char *sval)
                 switch(sval[3])
                 {
                 case 'D':
-                    result = HEAD;
+                    result = HTTP_METHOD_HEAD;
                     break;
                 default:
                     return INVALID_METHOD;
@@ -249,7 +202,7 @@ http_method_t str_to_http_method(const char *sval)
                         switch(sval[5])
                         {
                         case 'E':
-                            result = DELETE;
+                            result = HTTP_METHOD_DELETE;
                             break;
                         }
                         break;
@@ -290,7 +243,7 @@ http_method_t str_to_http_method(const char *sval)
                             switch (sval[6])
                             {
                             case 'T':
-                                result = CONNECT;
+                                result = HTTP_METHOD_CONNECT;
                                 break;
                             }
                             break;
@@ -334,7 +287,7 @@ http_method_t str_to_http_method(const char *sval)
                             switch (sval[6])
                             {
                             case 'S':
-                                result = OPTIONS;
+                                result = HTTP_METHOD_OPTIONS;
                                 break;
                             default:
                                 return INVALID_METHOD;
@@ -374,7 +327,7 @@ http_method_t str_to_http_method(const char *sval)
                     switch (sval[4])
                     {
                     case 'E':
-                        result = TRACE;
+                        result = HTTP_METHOD_TRACE;
                         break;
                     default:
                         return INVALID_METHOD;
@@ -398,15 +351,6 @@ http_method_t str_to_http_method(const char *sval)
 
     return result;
 }
-
-
-
-http_method_t str_to_method2(const char *sval)
-{
-
-
-}
-
 
 http_protocol_version_t str_to_http_protocol(const char *sval)
 {
@@ -485,23 +429,23 @@ int content_type_to_str(char *str, http_content_type_t ct, unsigned char str_len
         return 2;
     switch (ct)
     {
-    case text_html:
-        strncpy(str,content_type[0], str_len);
+    case CONTENT_TEXT_HTML:
+        strncpy(str,content_type_str[0], str_len);
         break;
-    case image_jpg:
-        strncpy(str,content_type[1], str_len);
+    case CONTENT_IMAGE_JPG:
+        strncpy(str,content_type_str[1], str_len);
         break;
-    case application_pdf:
-        strncpy(str,content_type[2], str_len);
+    case CONTENT_APPLICATION_PDF:
+        strncpy(str,content_type_str[2], str_len);
         break;
-    case image_png:
-        strncpy(str,content_type[3], str_len);
+    case CONTENT_IMAGE_PNG:
+        strncpy(str,content_type_str[3], str_len);
         break;
-    case video_mpeg:
-        strncpy(str,content_type[4], str_len);
+    case CONTENT_VIDEO_MPEG:
+        strncpy(str,content_type_str[4], str_len);
         break;
-    case text_css:
-        strncpy(str,content_type[5], str_len);
+    case CONTENT_TEXT_CSS:
+        strncpy(str,content_type_str[5], str_len);
         break;
     default:
         return 1;
@@ -558,28 +502,35 @@ int reason_code_to_str(char *str, http_reason_code_t rt, unsigned char str_len)
     }
     return 0;
 }
+
+
 http_general_header_t str_to_http_general_header(const char *gh)
 {
-    http_general_header_t result = Cache_Control; /* value corresponding to etable[0] */
-    for (u_int_t i = 0; general_header[i] != NULL; ++i, ++result)
-        if (!(strncasecmp(gh, general_header[i], 16)))
-            return result;
+    //    http_general_header_t result = CACHE_CONTROL;
+    //    for (u_int_t i = 0; general_header[i] != NULL; ++i, ++result)
+    //        if (!(strncasecmp(gh, general_header[i], 16)))
+    //            return result;
+    //    return INVALID_GENERAL_HEADER;
+
+
+
+
     return INVALID_GENERAL_HEADER;
 }
 
 http_entity_header_t str_to_http_entity_header(const char *eh)
 {
-    http_entity_header_t result = Allow; /* value corresponding to etable[0] */
-    for (u_int_t i = 0; entity_header[i] != NULL; ++i, ++result)
-        if (!(strncasecmp(eh, entity_header[i], 16)))
+    http_entity_header_t result = ENTITY_HEADER_ALLOW; /* value corresponding to etable[0] */
+    for (u_int_t i = 0; entity_header_str[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(eh, entity_header_str[i], 16)))
             return result;
     return INVALID_ENTITY_HEADER;
 }
 http_response_header_t str_to_http_response_header(const char *resph)
 {
-    http_response_header_t result = Accept_Ranges; /* value corresponding to etable[0] */
-    for (u_int_t i = 0; response_header[i] != NULL; ++i, ++result)
-        if (!(strncasecmp(resph, response_header[i], 16)))
+    http_response_header_t result = RESPONSE_HEADER_ACCEPT_RANGES; /* value corresponding to etable[0] */
+    for (u_int_t i = 0; response_header_str[i] != NULL; ++i, ++result)
+        if (!(strncasecmp(resph, response_header_str[i], 16)))
             return result;
     return INVALID_RESPONSE_HEADER;
 }
@@ -641,7 +592,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                     {
                                                     case 'N':
                                                     case 'n':
-                                                        result = Authorization;
+                                                        result = REQUEST_HEADER_AUTHORIZATION;
                                                         break;
                                                     }
                                                     break;
@@ -684,7 +635,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                         {
                         case 'T':
                         case 't':
-                            result = Accept;
+                            result = REQUEST_HEADER_ACCEPT;
                             switch (h[6])
                             {
                             case '-':
@@ -716,7 +667,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                         {
                                                         case 'T':
                                                         case 't':
-                                                            result = Accept_Charset;
+                                                            result = REQUEST_HEADER_ACCEPT_CHARSET;
                                                             break;
                                                         }
                                                         break;
@@ -761,7 +712,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                             {
                                                             case 'G':
                                                             case 'g':
-                                                                result=Accept_Encoding;
+                                                                result = REQUEST_HEADER_ACCEPT_ENCODING;
                                                                 break;
                                                             }
                                                             break;
@@ -812,7 +763,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                             {
                                                             case 'E':
                                                             case 'e':
-                                                                result=Accept_Language;
+                                                                result = REQUEST_HEADER_ACCEPT_LANGUAGE;
                                                                 break;
                                                             }
                                                             break;
@@ -864,7 +815,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                         {
                         case 'T':
                         case 't':
-                            result=Expect;
+                            result = REQUEST_HEADER_EXPECT;
                             break;
                         }
                         break;
@@ -890,7 +841,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                 {
                 case 'M':
                 case 'm':
-                    result=From;
+                    result = REQUEST_HEADER_FROM;
                     break;
                 }
                 break;
@@ -912,7 +863,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                 {
                 case 'T':
                 case 't':
-                    result = Host;
+                    result = REQUEST_HEADER_HOST;
                     break;
                 }
                 break;
@@ -947,7 +898,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                             {
                             case 'C':
                             case 'c':
-                                result = If_Match;
+                                result = REQUEST_HEADER_IF_MATCH;
                                 break;
                             }
                             break;
@@ -1002,7 +953,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                                     {
                                                                     case 'E':
                                                                     case 'e':
-                                                                        result = If_Modified_Since;
+                                                                        result = REQUEST_HEADER_IF_MODIFIED_SINCE;
                                                                         break;
                                                                     }
                                                                     break;
@@ -1070,7 +1021,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                     {
                                                     case 'H':
                                                     case 'h':
-                                                        result = If_None_Match;
+                                                        result = REQUEST_HEADER_IF_NONE_MATCH;
                                                         break;
                                                     }
                                                     break;
@@ -1109,7 +1060,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                 switch (h[7])
                                 {
                                 case 'E':
-                                    result = If_Range;
+                                    result = REQUEST_HEADER_IF_RANGE;
                                     break;
                                 }
                                 break;
@@ -1182,7 +1133,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                                             {
                                                                             case 'E':
                                                                             case 'e':
-                                                                                result = If_Unmodified_Since;
+                                                                                result = REQUEST_HEADER_IF_UNMODIFIED_SINCE;
                                                                                 break;
                                                                             }
                                                                             break;
@@ -1266,7 +1217,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                 {
                                                 case 'S':
                                                 case 's':
-                                                    result = Max_Forwards;
+                                                    result = REQUEST_HEADER_MAX_FORWARDS;
                                                     break;
                                                 }
                                                 break;
@@ -1365,7 +1316,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                                                             {
                                                                             case 'N':
                                                                             case 'n':
-                                                                                result = Proxy_Authorization;
+                                                                                result = REQUEST_HEADER_PROXY_AUTHORIZATION;
                                                                                 break;
                                                                             }
                                                                             break;
@@ -1424,7 +1375,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                     {
                     case 'E':
                     case 'e':
-                        result = Range;
+                        result = REQUEST_HEADER_RANGE;
                         break;
                     }
                     break;
@@ -1455,7 +1406,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                             {
                             case 'R':
                             case 'r':
-                                result = Referer;
+                                result = REQUEST_HEADER_REFERER;
                                 break;
                             }
                             break;
@@ -1476,7 +1427,7 @@ http_request_header_t str_to_http_request_header(const char *h)
         {
         case 'E':
         case 'e':
-            result = TE;
+            result = REQUEST_HEADER_TE;
             break;
         }
         break;
@@ -1518,7 +1469,7 @@ http_request_header_t str_to_http_request_header(const char *h)
                                         {
                                         case 'T':
                                         case 't':
-                                            result= User_Agent;
+                                            result= REQUEST_HEADER_USER_AGENT;
                                             break;
                                         }
                                         break;
@@ -1551,32 +1502,32 @@ int http_general_header_to_str(http_general_header_t h, char* str, unsigned char
         return 2;
     switch (h)
     {
-    case Cache_Control:
-        strncpy(str, general_header[0], str_len);
+    case GENERAL_HEADER_CACHE_CONTROL:
+        strncpy(str, general_header_str[0], str_len);
         break;
-    case Connection:
-        strncpy(str, general_header[1], str_len);
+    case GENERAL_HEADER_CONNECTION:
+        strncpy(str, general_header_str[1], str_len);
         break;
-    case Date:
-        strncpy(str, general_header[2], str_len);
+    case GENERAL_HEADER_DATE:
+        strncpy(str, general_header_str[2], str_len);
         break;
-    case Pragma:
-        strncpy(str, general_header[3], str_len);
+    case GENERAL_HEADER_PRAGMA:
+        strncpy(str, general_header_str[3], str_len);
         break;
-    case Trailer:
-        strncpy(str, general_header[4], str_len);
+    case GENERAL_HEADER_TRAILER:
+        strncpy(str, general_header_str[4], str_len);
         break;
-    case Transfer_Encoding:
-        strncpy(str, general_header[5], str_len);
+    case GENERAL_HEADER_TRANSFER_ENCODING:
+        strncpy(str, general_header_str[5], str_len);
         break;
-    case Upgrade:
-        strncpy(str, general_header[6], str_len);
+    case GENERAL_HEADER_UPGRADE:
+        strncpy(str, general_header_str[6], str_len);
         break;
-    case Via:
-        strncpy(str, general_header[7], str_len);
+    case GENERAL_HEADER_VIA:
+        strncpy(str, general_header_str[7], str_len);
         break;
-    case Warning:
-        strncpy(str, general_header[8], str_len);
+    case GENERAL_HEADER_WARNING:
+        strncpy(str, general_header_str[8], str_len);
         break;
     default:
         return 1;
@@ -1590,62 +1541,62 @@ int http_request_header_to_str(http_request_header_t h, char* str, unsigned char
         return 2;
     switch (h)
     {
-    case Accept:
-        strncpy(str, request_header[0], str_len);
+    case REQUEST_HEADER_ACCEPT:
+        strncpy(str, request_header_str[0], str_len);
         break;
-    case Accept_Charset:
-        strncpy(str, request_header[1], str_len);
+    case REQUEST_HEADER_ACCEPT_CHARSET:
+        strncpy(str, request_header_str[1], str_len);
         break;
-    case Accept_Encoding:
-        strncpy(str, request_header[2], str_len);
+    case REQUEST_HEADER_ACCEPT_ENCODING:
+        strncpy(str, request_header_str[2], str_len);
         break;
-    case Accept_Language:
-        strncpy(str, request_header[3], str_len);
+    case REQUEST_HEADER_ACCEPT_LANGUAGE:
+        strncpy(str, request_header_str[3], str_len);
         break;
-    case Authorization:
-        strncpy(str, request_header[4], str_len);
+    case REQUEST_HEADER_AUTHORIZATION:
+        strncpy(str, request_header_str[4], str_len);
         break;
-    case Expect:
-        strncpy(str, request_header[5], str_len);
+    case REQUEST_HEADER_EXPECT:
+        strncpy(str, request_header_str[5], str_len);
         break;
-    case From:
-        strncpy(str, request_header[6], str_len);
+    case REQUEST_HEADER_FROM:
+        strncpy(str, request_header_str[6], str_len);
         break;
-    case Host:
-        strncpy(str, request_header[7], str_len);
+    case REQUEST_HEADER_HOST:
+        strncpy(str, request_header_str[7], str_len);
         break;
-    case If_Match:
-        strncpy(str, request_header[8], str_len);
+    case REQUEST_HEADER_IF_MATCH:
+        strncpy(str, request_header_str[8], str_len);
         break;
-    case If_Modified_Since:
-        strncpy(str, request_header[9], str_len);
+    case REQUEST_HEADER_IF_MODIFIED_SINCE:
+        strncpy(str, request_header_str[9], str_len);
         break;
-    case If_None_Match:
-        strncpy(str, request_header[10], str_len);
+    case REQUEST_HEADER_IF_NONE_MATCH:
+        strncpy(str, request_header_str[10], str_len);
         break;
-    case If_Range:
-        strncpy(str, request_header[11], str_len);
+    case REQUEST_HEADER_IF_RANGE:
+        strncpy(str, request_header_str[11], str_len);
         break;
-    case If_Unmodified_Since:
-        strncpy(str, request_header[12], str_len);
+    case REQUEST_HEADER_IF_UNMODIFIED_SINCE:
+        strncpy(str, request_header_str[12], str_len);
         break;
-    case Max_Forwards:
-        strncpy(str, request_header[13], str_len);
+    case REQUEST_HEADER_MAX_FORWARDS:
+        strncpy(str, request_header_str[13], str_len);
         break;
-    case Proxy_Authorization:
-        strncpy(str, request_header[14], str_len);
+    case REQUEST_HEADER_PROXY_AUTHORIZATION:
+        strncpy(str, request_header_str[14], str_len);
         break;
-    case Range:
-        strncpy(str, request_header[15], str_len);
+    case REQUEST_HEADER_RANGE:
+        strncpy(str, request_header_str[15], str_len);
         break;
-    case Referer:
-        strncpy(str, request_header[16], str_len);
+    case REQUEST_HEADER_REFERER:
+        strncpy(str, request_header_str[16], str_len);
         break;
-    case TE:
-        strncpy(str, request_header[17], str_len);
+    case REQUEST_HEADER_TE:
+        strncpy(str, request_header_str[17], str_len);
         break;
-    case User_Agent:
-        strncpy(str, request_header[18], str_len);
+    case REQUEST_HEADER_USER_AGENT:
+        strncpy(str, request_header_str[18], str_len);
         break;
     default:
         return 1;
@@ -1660,35 +1611,35 @@ int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char s
         return 2;
     switch (h)
     {
-    case Allow:
-        strncpy(str, entity_header[0], str_len);
+    case ENTITY_HEADER_ALLOW:
+        strncpy(str, entity_header_str[0], str_len);
         break;
-    case Content_Encoding:
-        strncpy(str, entity_header[1], str_len);
+    case ENTITY_HEADER_CONTENT_ENCODING:
+        strncpy(str, entity_header_str[1], str_len);
         break;
-    case Content_Language:
-        strncpy(str, entity_header[2], str_len);
+    case ENTITY_HEADER_CONTENT_LANGUAGE:
+        strncpy(str, entity_header_str[2], str_len);
         break;
-    case Content_Length:
-        strncpy(str, entity_header[3], str_len);
+    case ENTITY_HEADER_CONTENT_LENGTH:
+        strncpy(str, entity_header_str[3], str_len);
         break;
-    case Content_Location:
-        strncpy(str, entity_header[4], str_len);
+    case ENTITY_HEADER_CONTENT_LOCATION:
+        strncpy(str, entity_header_str[4], str_len);
         break;
-    case Content_MD5:
-        strncpy(str, entity_header[5], str_len);
+    case ENTITY_HEADER_CONTENT_MD5:
+        strncpy(str, entity_header_str[5], str_len);
         break;
-    case Content_Range:
-        strncpy(str, entity_header[6], str_len);
+    case ENTITY_HEADER_CONTENT_RANGE:
+        strncpy(str, entity_header_str[6], str_len);
         break;
-    case Content_Type:
-        strncpy(str, entity_header[7], str_len);
+    case ENTITY_HEADER_CONTENT_TYPE:
+        strncpy(str, entity_header_str[7], str_len);
         break;
-    case Expires:
-        strncpy(str, entity_header[8], str_len);
+    case ENTITY_HEADER_EXPIRES:
+        strncpy(str, entity_header_str[8], str_len);
         break;
-    case Last_Modified:
-        strncpy(str, entity_header[9], str_len);
+    case ENTITY_HEADER_LAST_MODIFIED:
+        strncpy(str, entity_header_str[9], str_len);
         break;
     default:
         return 1;
@@ -1703,32 +1654,32 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
         return 2;
     switch(h)
     {
-    case Accept_Ranges:
-        strncpy(str, response_header[0], str_len);
+    case RESPONSE_HEADER_ACCEPT_RANGES:
+        strncpy(str, response_header_str[0], str_len);
         break;
-    case  Age:
-        strncpy(str, response_header[1], str_len);
+    case  RESPONSE_HEADER_AGE:
+        strncpy(str, response_header_str[1], str_len);
         break;
-    case   ETag:
-        strncpy(str, response_header[2], str_len);
+    case   RESPONSE_HEADER_ETAG:
+        strncpy(str, response_header_str[2], str_len);
         break;
-    case Location:
-        strncpy(str, response_header[3], str_len);
+    case RESPONSE_HEADER_LOCATION:
+        strncpy(str, response_header_str[3], str_len);
         break;
-    case Proxy_Authenticate:
-        strncpy(str, response_header[4], str_len);
+    case RESPONSE_HEADER_PROXY_AUTHENTICATE:
+        strncpy(str, response_header_str[4], str_len);
         break;
-    case Retry_After:
-        strncpy(str, response_header[5], str_len);
+    case RESPONSE_HEADER_RETRY_AFTER:
+        strncpy(str, response_header_str[5], str_len);
         break;
-    case Server:
-        strncpy(str, response_header[6], str_len);
+    case RESPONSE_HEADER_SERVER:
+        strncpy(str, response_header_str[6], str_len);
         break;
-    case Vary:
-        strncpy(str, response_header[7], str_len);
+    case RESPONSE_HEADER_VARY:
+        strncpy(str, response_header_str[7], str_len);
         break;
-    case  WWW_Authenticate:
-        strncpy(str, response_header[8], str_len);
+    case  RESPONSE_HEADER_WWW_AUTHENTICATE:
+        strncpy(str, response_header_str[8], str_len);
         break;
     default:
         return 1;
@@ -2082,7 +2033,7 @@ http_content_type_t get_file_MIME_type(const char* filename)
     if ((fileExtension = strrchr(filename, '.')) == NULL)
         return INVALID_MIME;
 
-    http_content_type_t mime = text_html;
+    http_content_type_t mime = CONTENT_TEXT_HTML;
 
     for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
         if (!(strncmp(fileExtension, file_ext[i], 5)))
@@ -2122,32 +2073,32 @@ int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
         return 2;
     switch (h)
     {
-    case GET:
-        strncpy(str, http_method[0], str_len);
+    case HTTP_METHOD_GET:
+        strncpy(str, http_method_str[0], str_len);
         break;
-    case POST:
-        strncpy(str, http_method[1], str_len);
+    case HTTP_METHOD_POST:
+        strncpy(str, http_method_str[1], str_len);
         break;
-    case HEAD:
-        strncpy(str, http_method[2], str_len);
+    case HTTP_METHOD_HEAD:
+        strncpy(str, http_method_str[2], str_len);
         break;
-    case PUT:
-        strncpy(str, http_method[3], str_len);
+    case HTTP_METHOD_PUT:
+        strncpy(str, http_method_str[3], str_len);
         break;
-    case DELETE:
-        strncpy(str, http_method[4], str_len);
+    case HTTP_METHOD_DELETE:
+        strncpy(str, http_method_str[4], str_len);
         break;
-    case CONNECT:
-        strncpy(str, http_method[5], str_len);
+    case HTTP_METHOD_CONNECT:
+        strncpy(str, http_method_str[5], str_len);
         break;
-    case OPTIONS:
-        strncpy(str, http_method[6], str_len);
+    case HTTP_METHOD_OPTIONS:
+        strncpy(str, http_method_str[6], str_len);
         break;
-    case TRACE:
-        strncpy(str, http_method[7], str_len);
+    case HTTP_METHOD_TRACE:
+        strncpy(str, http_method_str[7], str_len);
         break;
-    case PATCH:
-        strncpy(str, http_method[8], str_len);
+    case HTTP_METHOD_PATCH:
+        strncpy(str, http_method_str[8], str_len);
         break;
     default:
         return 1;

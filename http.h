@@ -35,110 +35,74 @@
 
 #define CRLF "\r\n"
 #define SP " "
-// the functions below work only on little endian
-#define str3cmp(m, c0, c1, c2, c3)                                            \
-    m[0] == c0 && m[1] == c1 && m[2] == c2
+typedef unsigned char u_int_t;
 
-#define str4cmp(m, c0, c1, c2, c3)                                            \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3
-
-#define str5cmp(m, c0, c1, c2, c3, c4)                                        \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3 && m[4] == c4
-
-#define str6cmp(m, c0, c1, c2, c3, c4, c5)                                    \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5
-
-#define str7_cmp(m, c0, c1, c2, c3, c4, c5, c6, c7)                           \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6
-
-#define str8cmp(m, c0, c1, c2, c3, c4, c5, c6, c7)                            \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6 && m[7] == c7
-
-#define str9cmp(m, c0, c1, c2, c3, c4, c5, c6, c7, c8)                        \
-    m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3                      \
-        && m[4] == c4 && m[5] == c5 && m[6] == c6 && m[7] == c7 && m[8] == c8
-
-
-#define HTTP_PROTOCOL(XX)           \
-  XX(0,  HTTP10,      HTTP/1.0)     \
-  XX(1,  HTTP11,      HTTP/1.1)     \
+#define HTTP_PROTOCOL(XX)            \
+    XX(0,  HTTP10,      HTTP/1.0)    \
+    XX(1,  HTTP11,      HTTP/1.1)    \
 
 typedef enum http_protocol_version
 {
-  #define XX(num, name, proto_str) PROTO_##name = num,
+#define XX(num, name, proto_str) PROTO_##name = num,
     HTTP_PROTOCOL(XX)
-  #undef XX
+#undef XX
     INVALID_PROTO=-1
 } http_protocol_version_t;
 
 
-typedef unsigned char u_int_t;
-
-// An example of request string
-// GET /query.php?firstname=denis&lastname=matveev HTTP/1.1 \r\n Host:denismatveev.me \r\n
-
 /* General Data structures */
 
-/* enumeration of all available HTTP methods */
-typedef enum http_method
-{
-    GET = 0,
-    POST,
-    HEAD,
-    PUT,
-    DELETE,
-    CONNECT,
-    OPTIONS,
-    TRACE,
-    PATCH,
-    INVALID_METHOD = -1
-} http_method_t;
-
-#define HTTP_REASON_CODE(XX)                           \
-  XX(400,  BAD_REQUEST,      400 Bad Request)          \
-  XX(404,  NOT_FOUND,        404 Not Found)            \
-  XX(413,  ENTITY_TOO_LARGE, 413 Entity Too Large)     \
-  XX(200,  OK       ,        200 OK            )       \
-  XX(500,  INTERNAL_ERROR,   500 Internal Error)       \
-  XX(501,  NOT_IMPLEMENTED,  501 Not Implemented  )    \
+#define HTTP_REASON_CODE(XX)                             \
+    XX(400,  BAD_REQUEST,      400 Bad Request)          \
+    XX(404,  NOT_FOUND,        404 Not Found)            \
+    XX(413,  ENTITY_TOO_LARGE, 413 Entity Too Large)     \
+    XX(200,  OK       ,        200 OK            )       \
+    XX(500,  INTERNAL_ERROR,   500 Internal Error)       \
+    XX(501,  NOT_IMPLEMENTED,  501 Not Implemented  )    \
 
 
 typedef enum reason_code
 {
 #define XX(num, name, proto_str) REASON_##name = num,
-  HTTP_REASON_CODE(XX)
+    HTTP_REASON_CODE(XX)
 #undef XX
 }http_reason_code_t;
 
+#define HTTP_CONTENT_TYPE(XX)                                         \
+    XX(0, TEXT_HTML,            Content-Type: text/html)              \
+    XX(1, IMAGE_JPG,            Content-Type: image/jpg)              \
+    XX(2, APPLICATION_PDF,      Content-Type: application/pdf)        \
+    XX(3, IMAGE_PNG,            Content-Type: image/png)              \
+    XX(4, VIDEO_MPEG,           Content-Type: video/mpeg)             \
+    XX(5, TEXT_CSS,             Content-Type: text/css)               \
 
 typedef enum content_type
 {
-    text_html = 0,
-    image_jpg,
-    application_pdf,
-    image_png,
-    video_mpeg,
-    text_css,
+#define XX(num, name, content_type_str) CONTENT_##name = num,
+    HTTP_CONTENT_TYPE(XX)
+#undef XX
     INVALID_MIME = -1
-}http_content_type_t;
+} http_content_type_t;
 
-typedef enum __general_header
+#define HTTP_GENERAL_HEADER(XX)                       \
+    XX(0, CACHE_CONTROL,      Cache-Control:)         \
+    XX(1, CONNECTION,         Connection:)            \
+    XX(2, DATE,               Date:)                  \
+    XX(3, PRAGMA,             Pragma:)                \
+    XX(4, TRAILER,            Trailer:)               \
+    XX(5, TRANSFER_ENCODING,  Transfer-Encoding:)     \
+    XX(6, UPGRADE,            Upgrade:)               \
+    XX(7, VIA,                Via:)                   \
+    XX(8, WARNING,            Warning:)               \
+
+typedef enum general_header
 {
-    Cache_Control = 0,
-    Connection,
-    Date,
-    Pragma,
-    Trailer,
-    Transfer_Encoding,
-    Upgrade,
-    Via,
-    Warning,
-    INVALID_GENERAL_HEADER=-1
+#define XX(num, name, general_header_str) GENERAL_HEADER_##name = num,
+    HTTP_GENERAL_HEADER(XX)
+#undef XX
+    INVALID_GENERAL_HEADER = -1
+} http_general_header_t;
 
-}http_general_header_t;
 
 typedef enum __header_type
 {
@@ -149,23 +113,25 @@ typedef enum __header_type
     INVALID_HEADER_TYPE=-1
 }http_header_type_t;
 
+#define HTTP_ENTITY_HEADER(XX)                           \
+    XX(0, ALLOW,                  Allow:)                \
+    XX(1, CONTENT_ENCODING,       Content-Encoding:)     \
+    XX(2, CONTENT_LANGUAGE,       Content-Language:)     \
+    XX(3, CONTENT_LENGTH,         Content-Length:)       \
+    XX(4, CONTENT_LOCATION,       Content-Location::)    \
+    XX(5, CONTENT_MD5,            Content-MD5:)          \
+    XX(6, CONTENT_RANGE,          Content-Range:)        \
+    XX(7, CONTENT_TYPE,           Content-Type::)        \
+    XX(8, EXPIRES,                Expires:)              \
+    XX(9, LAST_MODIFIED,          Last-Modified:)        \
 
-typedef enum __entity_header
+typedef enum enity_header
 {
-
-    Allow = 0,
-    Content_Encoding,
-    Content_Language,
-    Content_Length,
-    Content_Location,
-    Content_MD5,
-    Content_Range,
-    Content_Type,
-    Expires,
-    Last_Modified,
-    INVALID_ENTITY_HEADER=-1
-
-}http_entity_header_t;
+#define XX(num, name, entity_header_str) ENTITY_HEADER_##name = num,
+    HTTP_ENTITY_HEADER(XX)
+#undef XX
+    INVALID_ENTITY_HEADER = -1
+} http_entity_header_t;
 
 /* The structure below is used both in request and response */
 
@@ -188,30 +154,54 @@ typedef struct __http_headers_list
 
 /* Request related data structures */
 
-typedef enum __request_header
-{
-    Accept = 0,
-    Accept_Charset,
-    Accept_Encoding,
-    Accept_Language,
-    Authorization,
-    Expect,
-    From,
-    Host,
-    If_Match,
-    If_Modified_Since,
-    If_None_Match,
-    If_Range,
-    If_Unmodified_Since,
-    Max_Forwards,
-    Proxy_Authorization,
-    Range,
-    Referer,
-    TE,
-    User_Agent,
-    INVALID_REQUEST_HEADER=-1
+#define HTTP_METHOD(XX)                   \
+    XX(0, GET,                  GET)      \
+    XX(1, POST,                 POST)     \
+    XX(2, HEAD,                 HEAD)     \
+    XX(3, PUT,                  PUT)      \
+    XX(4, DELETE,               DELETE)   \
+    XX(5, CONNECT,              CONNECT)  \
+    XX(6, OPTIONS,              OPTIONS)  \
+    XX(7, TRACE,                TRACE)    \
+    XX(8, PATCH,                PATCH)    \
 
-}http_request_header_t;
+typedef enum http_method
+{
+#define XX(num, name, http_method_str) HTTP_METHOD_##name = num,
+    HTTP_METHOD(XX)
+#undef XX
+    INVALID_METHOD = -1
+} http_method_t;
+
+#define HTTP_REQUEST_HEADER(XX)                                  \
+    XX(0, ACCEPT,                         Accept:)               \
+    XX(1, ACCEPT_CHARSET,                 Accept-Charset:)       \
+    XX(2, ACCEPT_ENCODING,                Accept-Encoding:)      \
+    XX(3, ACCEPT_LANGUAGE,                Accept-Language:)      \
+    XX(4, AUTHORIZATION,                  Authorization:)        \
+    XX(5, EXPECT,                         Expect:)               \
+    XX(6, FROM,                           From:)                 \
+    XX(7, HOST,                           Host:)                 \
+    XX(8, IF_MATCH,                       If-Match:)              \
+    XX(9, IF_MODIFIED_SINCE,              If-Modified-Since:)    \
+    XX(10, IF_NONE_MATCH,                 If-None-Match:)        \
+    XX(11, IF_RANGE,                      If-Range:)             \
+    XX(12, IF_UNMODIFIED_SINCE,           If-Unmodified-Since:)  \
+    XX(13, MAX_FORWARDS,                  Max-Forwards:)         \
+    XX(14, PROXY_AUTHORIZATION,           Proxy-Authorization:)  \
+    XX(15, RANGE,                         Range:)                \
+    XX(16, REFERER,                       Referer:)              \
+    XX(17, TE,                            TE:)                   \
+    XX(18, USER_AGENT,                    User-Agent:)           \
+
+typedef enum request_header
+{
+#define XX(num, name, http_request_header_str) REQUEST_HEADER_##name = num,
+    HTTP_REQUEST_HEADER(XX)
+#undef XX
+    INVALID_REQUEST_HEADER = -1
+} http_request_header_t;
+
 
 typedef struct __http_request_line
 {
@@ -232,20 +222,25 @@ typedef struct __http_request
 
 /* Response related data structures */
 
-typedef enum __response_header
-{
-    Accept_Ranges = 0,
-    Age,
-    ETag,
-    Location,
-    Proxy_Authenticate,
-    Retry_After,
-    Server,
-    Vary,
-    WWW_Authenticate,
-    INVALID_RESPONSE_HEADER=-1
+#define HTTP_RESPONSE_HEADER(XX)                       \
+    XX(0, ACCEPT_RANGES,      Accept-Ranges:)          \
+    XX(1, AGE,                Age:)                    \
+    XX(2, ETAG,               ETag:)                   \
+    XX(3, LOCATION,           Location:)               \
+    XX(4, PROXY_AUTHENTICATE, Proxy-Authenticate:)     \
+    XX(5, RETRY_AFTER,        Retry-After:)            \
+    XX(6, SERVER,             Server:)                 \
+    XX(7, VARY,               Vary:)                   \
+    XX(8, WWW_AUTHENTICATE,   WWW-Authenticate:)       \
 
-}http_response_header_t;
+typedef enum response_header
+{
+#define XX(num, name, response_header_str) RESPONSE_HEADER_##name = num,
+    HTTP_RESPONSE_HEADER(XX)
+#undef XX
+    INVALID_RESPONSE_HEADER = -1
+} http_response_header_t;
+
 
 typedef struct __http_status_line
 {
