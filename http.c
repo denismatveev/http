@@ -66,9 +66,9 @@ static char* http_method_str[] =
 // errors
 
 static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>";
-static char* not_found_error = "<html><body><head><titile>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>";
-static char* internal_error = "<html><body><head><titile>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
-static char* not_implemented_error = "<html><body><head><titile>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
+static char* not_found_error = "<html><body><head><title>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>";
+static char* internal_error = "<html><body><head><title>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
+static char* not_implemented_error = "<html><body><head><title>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
 
 // According to RFC2616 a method must be case sensitive
 // Implied the passing string is null terminated, but doesn't verified if there is '/0' at the end position
