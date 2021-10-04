@@ -1685,52 +1685,44 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
 http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[])
 {
     http_header_node_t* t;
-    char http_header[HTTP_HEADER_NAME_MAX_LEN];
+    http_header_type_t type;
 
-    strncpy(http_header,http_header_name, HTTP_HEADER_NAME_MAX_LEN);
+    if((str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
+        type=http_general_header;
+    else if((str_to_http_entity_header(http_header_name)) != INVALID_ENTITY_HEADER)
+        type=http_entity_header;
+    else if((str_to_http_request_header(http_header_name)) != INVALID_REQUEST_HEADER)
+        type=http_request_header;
+    else
+        return NULL;
 
     if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
+    t->type=type;
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
-
-    if((t->http_header=str_to_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
-        t->type=http_general_header;
-    else if((t->http_header=str_to_http_entity_header(http_header)) != INVALID_ENTITY_HEADER)
-        t->type=http_entity_header;
-    else if((t->http_header=str_to_http_request_header(http_header)) != INVALID_REQUEST_HEADER)
-        t->type=http_request_header;
-    else
-    {
-        free(t);
-        return NULL;
-    }
 
     return t;
 }
 http_header_node_t* init_http_response_header_node(const char http_header_name[], const char http_header_value[])
 {
     http_header_node_t* t;
-    char http_header[HTTP_HEADER_NAME_MAX_LEN];
+    http_header_type_t type;
 
-    strncpy(http_header,http_header_name, HTTP_HEADER_NAME_MAX_LEN);
+    if((str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
+        type=http_general_header;
+    else if(str_to_http_entity_header(http_header_name) != INVALID_ENTITY_HEADER)
+        type=http_entity_header;
+    else if(str_to_http_response_header(http_header_name) != INVALID_RESPONSE_HEADER)
+        type=http_request_header;
+    else
+        return NULL;
 
     if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
+    t->type=type;
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
-
-    if((str_to_http_general_header(http_header)) != INVALID_GENERAL_HEADER)
-        t->type=http_general_header;
-    else if(str_to_http_entity_header(http_header) != INVALID_ENTITY_HEADER)
-        t->type=http_entity_header;
-    else if(str_to_http_response_header(http_header) != INVALID_RESPONSE_HEADER)
-        t->type=http_request_header;
-    else
-    {
-        free(t);
-        return NULL;
-    }
 
     return t;
 }
