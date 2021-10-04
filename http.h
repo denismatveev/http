@@ -24,13 +24,15 @@
 #define INITIAL_DATA_SIZE (8+REQUEST_URI_STRING_LENGTH+9+HTTP_HEADERS_MAX_SIZE) //method+request-uri+http-version+headers
 #define HEADERS_LIMIT 64 //total number of headers(general,request, entity, response headers)
 #define MAX_EVENTS 10
-#define servername "Maya web server"
+#define SERVERNAME "Maya web server"
 #define CONTENT_TYPE_MAX_LENGTH 16
 #define HTTP_PROTOCOL_VERSION_MAX_LENGTH 9
 #define REASON_CODE_NAME_MAX_LENGTH 21
 #define HTTP_HEADER_NAME_MAX_LEN 21
 #define HTTP_HEADER_VALUE_MAX_LEN 128
 #define HTTP_METHOD_MAX_LEN 8
+#define DATE_HEADER_MAX_LENGTH 64
+#define HEADER_VALUE_MAX_LENGTH 512
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
 
 #define CRLF "\r\n"
@@ -46,24 +48,24 @@ typedef enum http_protocol_version
 #define XX(num, name, proto_str) PROTO_##name = num,
     HTTP_PROTOCOL(XX)
 #undef XX
-    INVALID_PROTO=-1
+    INVALID_PROTO = -1
 } http_protocol_version_t;
 
 
 /* General Data structures */
 
 #define HTTP_REASON_CODE(XX)                             \
+    XX(200,  OK       ,        200 OK            )       \
     XX(400,  BAD_REQUEST,      400 Bad Request)          \
     XX(404,  NOT_FOUND,        404 Not Found)            \
     XX(413,  ENTITY_TOO_LARGE, 413 Entity Too Large)     \
-    XX(200,  OK       ,        200 OK            )       \
     XX(500,  INTERNAL_ERROR,   500 Internal Error)       \
     XX(501,  NOT_IMPLEMENTED,  501 Not Implemented  )    \
 
 
 typedef enum reason_code
 {
-#define XX(num, name, proto_str) REASON_##name = num,
+#define XX(num, name, reason_str) REASON_##name = num,
     HTTP_REASON_CODE(XX)
 #undef XX
 }http_reason_code_t;
@@ -248,7 +250,6 @@ typedef struct __http_status_line
     http_reason_code_t rc;
 } http_status_line_t;
 
-// Response to be sent is  in function
 typedef struct __http_response
 {
     http_status_line_t sl;
@@ -283,13 +284,10 @@ http_general_header_t str_to_http_general_header(const char *);
 http_entity_header_t str_to_http_entity_header(const char *);
 http_response_header_t str_to_http_response_header(const char *);
 http_request_header_t str_to_http_request_header(const char *h);
-int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
-
 
 /* Request related functions */
 
 int create_http_request(http_request_t* request, http_headers_list_t *list, http_request_line_t req_line);
-
 int parse_http_header_line(char* header_line, char *header, char *value);
 
 // process client raw data and put into request structure
@@ -313,25 +311,13 @@ http_method_t str_to_http_method(const char *);
 http_protocol_version_t str_to_http_protocol(const char *);
 
 /* Response related functions */
-
+http_response_t* init_http_response(void);
+void delete_http_response(http_response_t*);
 int create_http_response(http_response_t* response, http_headers_list_t *list, http_status_line_t status);
-// creates header Server:
-// output char*, max length is len
-int create_server_header(char* server_name, size_t len);
-// creates Date: header in user's locale
-// output: char*, max 128 chars
-// returns 0 if OK, 1 if failed
-int create_date_header_to_str(char*, unsigned char);
-// creates status line with error
-// input: http_reason_code_t code, char* error_file
-// output: http_response_t* r
-// returns 0 if OK, 1 if failed
-int create_error_response(http_response_t* r, const http_reason_code_t code, char* error_file);
 // serialize response to be sent
 // input: http_response_t* r
 // output: char* serialized_response
 // returns 0 if OK, 1 if failed
-int response_to_str(char* serialized_response, const http_response_t* r);
 long get_file_size(int fd);
 // file content type by its extension. Max extension length is 5
 // input: char* filename
@@ -353,8 +339,13 @@ int status_line_to_str(char*, http_protocol_version_t, http_reason_code_t, unsig
 int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt, unsigned char str_len);
 int reason_code_to_str(char *, http_reason_code_t, unsigned char len);
 int http_method_to_str(http_method_t h, char* str, unsigned char str_len);
-
-
-
-
+// set functions
+int set_reason_code(http_response_t* r, int code);
+int content_type_to_str(char *str, http_content_type_t ct, unsigned char str_len);
+int http_general_header_to_str(http_general_header_t h, char* str, unsigned char str_len);
+int http_request_header_to_str(http_request_header_t h, char* str, unsigned char str_len);
+int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char str_len);
+int http_response_header_to_str(http_response_header_t h, char* str, unsigned char str_len);
+int process_http_response(char* response, const http_response_t* rs, size_t str_len);
+int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
 #endif /*_HTTP_H*/
