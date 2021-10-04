@@ -23,11 +23,11 @@ node_t* init_node(const char *name, const char* rootdir, const char* index)
 
     strncpy(node->hostname, name, 256);
     node->section=s;
-    // rootdir and index are mandatory params and will return NULL if there are no them
+    // rootdir and index are mandatory params and will return NULL if there are no they
     if(fill_section(s, "rootdir", rootdir))
-        return NULL;
+        goto exit;
     if(fill_section(s,"index", index))
-        return NULL;
+        goto exit;
 
     node->section=NULL;
     node->color=Red;    // default colour is Red
@@ -35,6 +35,10 @@ node_t* init_node(const char *name, const char* rootdir, const char* index)
     node->right_node=NILL;
     node->parent=NILL;
     return node;
+exit:
+    destroy_section(s);
+    free(node);
+    return NULL;
 }
 
 node_t* init_node_s(section_t s)
