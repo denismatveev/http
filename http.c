@@ -1700,7 +1700,11 @@ http_header_node_t* init_http_request_header_node(const char http_header_name[],
         t->type=http_entity_header;
     else if((t->http_header=str_to_http_request_header(http_header)) != INVALID_REQUEST_HEADER)
         t->type=http_request_header;
-    else return NULL;
+    else
+    {
+        free(t);
+        return NULL;
+    }
 
     return t;
 }
@@ -1722,7 +1726,11 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[]
         t->type=http_entity_header;
     else if(str_to_http_response_header(http_header) != INVALID_RESPONSE_HEADER)
         t->type=http_request_header;
-    else return NULL;
+    else
+    {
+        free(t);
+        return NULL;
+    }
 
     return t;
 }
