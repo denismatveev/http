@@ -346,6 +346,6 @@ int http_general_header_to_str(http_general_header_t h, char* str, unsigned char
 int http_request_header_to_str(http_request_header_t h, char* str, unsigned char str_len);
 int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char str_len);
 int http_response_header_to_str(http_response_header_t h, char* str, unsigned char str_len);
-int process_http_response(char* response, const http_response_t* rs, size_t str_len);
+int process_http_response(char* response, http_response_t *rs, size_t str_len);
 int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
 #endif /*_HTTP_H*/

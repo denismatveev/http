@@ -32,14 +32,14 @@ int main(int argc, char** argv)
     // an example how to use library for parsing a request
     http_request_t* request;
     http_response_t* response;
-    response=init_http_response();
+    response=init_http_response();// initializing empty response
 
     request=init_http_request();// dynamically allocated data structure
 
-    char to_be_sent[128];
+    char to_be_sent[512]={0};// buffer to be sent
 
 
-    char raw_string0[]=" GET / HTTP/1.1\r\nHost: ya.ru\r\nUser-Agent: curl\r\n\r\n";//Request Line should start from alpha symbol. No space or others allowed
+    char raw_string0[]=" GET / HTTP/1.1\r\nHost: ya.ru\r\nUser-Agent: curl\r\n\r\n";//Request-Line should start from alpha symbol. No space or others allowed
     char raw_string1[]="GET / HTTP/1.1\r\nHost: ya.ru\r\n\r\n";
 
 
@@ -49,10 +49,9 @@ int main(int argc, char** argv)
     print_request(request);
     //if we parsed all successfully, set reason code is 200
     set_reason_code(response, 200);
-    //push some additional headers like Content-Type and Content-Length
-
-
-    process_http_response(to_be_sent,response,128);
+    //push some additional headers like Content-Type and Content-Length(by name)
+    // Or push by enum(in case of using in web server to prevent double converting(string to number, then number to string)
+    process_http_response(to_be_sent,response,512);
 
 
 

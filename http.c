@@ -481,6 +481,9 @@ int reason_code_to_str(char *str, http_reason_code_t rt, unsigned char str_len)
 
     switch(rt)
     {
+    case REASON_OK:
+        strncpy(str,reason_code_name[0], str_len);
+        break;
     case REASON_BAD_REQUEST:
         strncpy(str, reason_code_name[0], str_len);
         break;
@@ -489,9 +492,6 @@ int reason_code_to_str(char *str, http_reason_code_t rt, unsigned char str_len)
         break;
     case REASON_ENTITY_TOO_LARGE:
         strncpy(str,reason_code_name[2], str_len);
-        break;
-    case REASON_OK:
-        strncpy(str,reason_code_name[3], str_len);
         break;
     case REASON_INTERNAL_ERROR:
         strncpy(str,reason_code_name[4], str_len);
@@ -1686,12 +1686,15 @@ http_header_node_t* init_http_request_header_node(const char http_header_name[],
 {
     http_header_node_t* t;
     http_header_type_t type;
+    int http_header;
 
-    if((str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
+
+
+    if((http_header=str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
         type=http_general_header;
-    else if((str_to_http_entity_header(http_header_name)) != INVALID_ENTITY_HEADER)
+    else if((http_header=str_to_http_entity_header(http_header_name)) != INVALID_ENTITY_HEADER)
         type=http_entity_header;
-    else if((str_to_http_request_header(http_header_name)) != INVALID_REQUEST_HEADER)
+    else if((http_header=str_to_http_request_header(http_header_name)) != INVALID_REQUEST_HEADER)
         type=http_request_header;
     else
         return NULL;
@@ -1699,6 +1702,7 @@ http_header_node_t* init_http_request_header_node(const char http_header_name[],
     if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
     t->type=type;
+    t->http_header=http_header;
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
 
@@ -1708,19 +1712,21 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[]
 {
     http_header_node_t* t;
     http_header_type_t type;
+    int http_header;
 
-    if((str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
+    if((http_header=str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
         type=http_general_header;
-    else if(str_to_http_entity_header(http_header_name) != INVALID_ENTITY_HEADER)
+    else if((http_header=str_to_http_entity_header(http_header_name)) != INVALID_ENTITY_HEADER)
         type=http_entity_header;
-    else if(str_to_http_response_header(http_header_name) != INVALID_RESPONSE_HEADER)
-        type=http_request_header;
+    else if((http_header=str_to_http_response_header(http_header_name)) != INVALID_RESPONSE_HEADER)
+        type=http_response_header;
     else
         return NULL;
 
     if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
     t->type=type;
+    t->http_header=http_header;
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
 
@@ -1862,7 +1868,7 @@ int status_line_to_str(char* str, http_protocol_version_t p, http_reason_code_t 
     if((reason_code_to_str(reason_str, r, REASON_CODE_NAME_MAX_LENGTH)))
         return -1;
 
-    http_ptorocol_code_to_str(str,p, str_len);// HTTP/1.1
+    http_ptorocol_code_to_str(str, p, str_len);// HTTP/1.1
     strncat(str, SP, str_len);// adding space separator
     strncat(str, reason_str, str_len);
 
@@ -2003,10 +2009,11 @@ void delete_http_response(http_response_t* response)
 int get_current_date_str(char* date)
 {
 
+    setlocale(LC_TIME, "POSIX");
     time_t t = time(NULL);
     struct tm *tm = gmtime(&t);
 
-    strftime(date, DATE_HEADER_MAX_LENGTH, "%c", tm);
+    strftime(date, DATE_HEADER_MAX_LENGTH, "%a, %d %b %Y %T %Z", tm);
 
     return 0;
 }
@@ -2059,7 +2066,7 @@ int file_MIME_type_to_str(char* content_type, const char* filename, unsigned cha
 }
 
 // creates a serialized response to be sent to client
-int process_http_response(char* response, const http_response_t* rs, size_t str_len)
+int process_http_response(char* response, http_response_t* rs, size_t str_len)
 {
 
     char status_line[STATUS_LINE_MAX_LENGTH];
@@ -2071,6 +2078,7 @@ int process_http_response(char* response, const http_response_t* rs, size_t str_
     char header_name[HEADER_VALUE_MAX_LENGTH],header_value[HEADER_VALUE_MAX_LENGTH];
 
     list=init_http_headers_list(node);
+    rs->headers=list;
     // Pushing Status-Line
     status_line_to_str(status_line, rs->sl.hv, rs->sl.rc, STATUS_LINE_MAX_LENGTH);
     get_current_date_str(date);// DATE must be present in all responses except some cases: 1. 500 error(if it is impossible) 2. 100 code - optional, 3. if server does not have clock
@@ -2084,7 +2092,7 @@ int process_http_response(char* response, const http_response_t* rs, size_t str_
     // pushing all headers
     while(cur != NULL)
     {
-        header_name_to_str_value_by_type(cur, header_value, header_name);
+        header_name_to_str_value_by_type(cur, header_name, header_value);
         strncat(response, header_name,str_len);
         strncat(response, header_value,str_len);
         strncat(response,CRLF,str_len);
