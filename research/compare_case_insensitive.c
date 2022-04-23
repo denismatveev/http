@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include "../http.h"
+#include "http.h"
 #define TOLOWERCASE(c)      (char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define TOUPPERCASE(c)      (char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 // This file created to compare different types for finding words matching using if-else statement and switch in case insensitive comparison.

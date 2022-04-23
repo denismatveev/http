@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "../http.h"
+#include "http.h"
 
 // This file created to compare different types for finding words matching using if-else statement and switch in case sensitive comparison.
 // There is time calculation spent by different approaches. In the end consumed time by functions will be shown.
