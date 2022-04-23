@@ -71,7 +71,7 @@ static char* internal_error = "<html><body><head><title>500 Internal Error</titl
 static char* not_implemented_error = "<html><body><head><title>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
 
 // According to RFC2616 a method must be case sensitive
-// Implied the passing string is null terminated, but doesn't verified if there is '/0' at the end position
+// Implied the passing string is null terminated, but doesn't verified if there is '\0' at the end position
 // A caller must take care about null terminating
 
 http_method_t str_to_http_method(const char *sval)
