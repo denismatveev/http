@@ -49,8 +49,9 @@ int main(int argc, char** argv)
     print_request(request);
     //if we parsed all successfully, set reason code is 200
     set_reason_code(response, 200);
-    //push some additional headers like Content-Type and Content-Length(by name)
-    // Or push by enum(in case of using in web server to prevent double converting(string to number, then number to string)
+    //push some additional headers like Content-Type and Content-Length(by name): push_http_header(http_response_t*, char* http_name, char* http_value)
+    //Or push by enum(in case of using in web server to prevent double converting(string to number, then number to string): push_http_data(http_response_t*, int header_type, int header_name, char* header_value)
+    //TODO process_http_request(http_response_t*, http_request_t*) inside the web server
     process_http_response(to_be_sent,response,512);
 
 

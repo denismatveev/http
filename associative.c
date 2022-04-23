@@ -95,7 +95,8 @@ int add_elem(assoc_t *arr, const char* key, const char* value)
 
     if(arr->array[i] && arr->array[i]->is_deleted == 0)
     {
-        // in case of collision (different keys hashed in one cell)
+        // in case of collision (different keys hashed in the cell)
+        // To resolve a collision we use linear approach
 
         for(;i < arr->capacity; i++)
         {

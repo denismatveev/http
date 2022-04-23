@@ -2,10 +2,13 @@ cmake_minimum_required(VERSION 3.2)
 #swd - simple web daemon
 project(swd)
 include_directories(.)
-#add_definitions(-DDEBUG -DQUEUEDEBUG)
+add_definitions(-DDEBUG -DQUEUEDEBUG)
 add_library(http
     http.c
+    common.c
     )
+target_compile_options (http PRIVATE -Ofast)
+add_library(config config.c)
 add_library(swdlib
     worker.c
     jobs_queue.c
@@ -47,10 +50,20 @@ add_executable(test_rbtree
     common.c)
 add_executable(test_cfg
     tests/cfg_test.c
-    queue.c)
+    queue.c
+    associative.c
+    config.c
+    common.c
+    )
+add_executable(test_http_parsing
+    http.c
+    common.c
+    tests/test_http_parsing.c)
 add_executable(case_insensitive research/compare_case_insensitive.c)
+target_compile_options (case_insensitive PRIVATE -Ofast)
 target_link_libraries(swd swdlib pthread RBTree)
 target_link_libraries(test_swd_queues http swdlib pthread)
 target_link_libraries(test_assoc swdlib)
 target_link_libraries(test_rbtree RBTree)
-target_link_libraries(test_cfg swdlib RBTree)
+#target_link_libraries(test_cfg swdlib RBTree)
+target_link_libraries(test_cfg RBTree)
