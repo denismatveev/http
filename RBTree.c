@@ -23,13 +23,12 @@ node_t* init_node(const char *name, const char* rootdir, const char* index)
 
     strncpy(node->hostname, name, 256);
     node->section=s;
-    // rootdir and index are mandatory params and will return NULL if there are no they
     if(fill_section(s, "rootdir", rootdir))
         goto exit;
     if(fill_section(s,"index", index))
         goto exit;
 
-    node->section=NULL;
+    //    node->section=NULL;
     node->color=Red;    // default colour is Red
     node->left_node=NILL;
     node->right_node=NILL;
@@ -46,6 +45,7 @@ node_t* init_node_s(section_t s)
     node_t* node;
     if((node=(node_t*)malloc(sizeof(node_t))) == NULL)
         return NULL;
+    memset(node->hostname,0,sizeof(node->hostname));
     node->section=(section_t)s;
     node->color=Red;    // default colour is Red
     node->left_node=NILL;
@@ -248,7 +248,7 @@ node_t* insert_in_rbtree(rb_tree_t *rbtree, node_t *n)
             node = node->left_node;
         else if(r > 0)
             node = node->right_node;
-        else return NULL; // if such node already exist
+        else return NULL; // if such node already exist(duplicated)
     }
 
     n->parent = parent;
@@ -443,7 +443,7 @@ void rbtree_delete(rb_tree_t *rbtree, node_t *to_delete)
 
 }
 
-node_t *rbtree_search (rb_tree_t *rbtree, const char *hostname)
+node_t *rbtree_search (rb_tree_t *rbtree, const char *hostname)// hostname is a key for searching for node in RB Tree
 {
     int r = 0;
     node_t *node = rbtree->root;
@@ -461,7 +461,7 @@ node_t *rbtree_search (rb_tree_t *rbtree, const char *hostname)
     return NILL;
 }
 
-node_t* search_host(rb_tree_t* tree, const char* host)
+node_t* search_host(rb_tree_t* tree, const char* host)//host is a key for searching for node with such host
 {
     node_t* n;
     if((n=rbtree_search(tree, host)) == NILL)
@@ -481,7 +481,7 @@ void print_node(node_t* node)
         if(node->color == Red)
             printf("\033[1;31m");
         printf("| %s |", node->hostname);
-        printf("\033[0m");
+        printf("\033[0m");// print red color in terminal
     }
     return;
 }
@@ -497,7 +497,7 @@ void printRBTree(rb_tree_t *t)
     Queue q=init_queue();
     qe=init_q_elem(t->root);
     qe->is_end=1;
-    push(q, qe);// pushing a root into queue
+    push(q, qe);// pushing the root into queue
 
     while(!pop(q, &tmp))
     {
@@ -523,5 +523,42 @@ void printRBTree(rb_tree_t *t)
     }
     destroy_q_elem(tmp);
 
+    destroy_queue(q);
+}
+
+void level_order_traverseRBTree(rb_tree_t *t, void* (*action)(node_t*, void*), void* args)
+{
+    /* this is level order traversal or breadth-first search, BFS*/
+
+    q_elem_t qe = NULL;
+    q_elem_t tmp=NULL;
+    Queue q;
+
+    q=init_queue();
+    qe=init_q_elem(t->root);
+    push(q, qe);// pushing a root into queue
+
+    while(!(pop(q, &tmp)))
+    {
+
+
+        if(tmp->node == NILL)// skipping pushing NILL nodes into queue
+            continue;
+
+        if((action(tmp->node, args)) != 0)
+            break;
+
+        if(tmp->node->left_node != NULL)
+        {
+            qe=init_q_elem(tmp->node->left_node);
+            push(q, qe);
+        }
+        if(tmp->node->right_node != NULL)
+        {
+            qe=init_q_elem(tmp->node->right_node);
+            push(q, qe);
+        }
+    }
+    destroy_q_elem(tmp);
     destroy_queue(q);
 }

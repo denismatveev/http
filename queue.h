@@ -10,7 +10,7 @@
 typedef struct q_elem
 {
     node_t* node;
-    char is_end;
+    char is_end;//used in prining to indicate if this node is the last in tree
     struct q_elem *next;
 }__q_elem;
 typedef __q_elem* q_elem_t;

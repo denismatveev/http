@@ -41,8 +41,11 @@ int main(int argc, char** argv)
 
     }
 
-    if((create_config(&cfg, cfgFile)))
+    if((create_cfg_from_file(&cfg, cfgFile)))
+    {
         printf("Something went wrong. Check logs\n");
+        exit(1);
+     }
 
     pid=fork();//child process
 
