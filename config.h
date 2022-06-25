@@ -65,8 +65,7 @@ typedef struct red_black_tree
 }rb_tree_t;
 typedef struct __params
 {
-//    node_t* node;
-    char sitename[256];
+    char * sitename;
     char * param;
 }params_t;
 

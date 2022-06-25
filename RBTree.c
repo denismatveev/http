@@ -559,6 +559,5 @@ void level_order_traverseRBTree(rb_tree_t *t, void* (*action)(node_t*, void*), v
             push(q, qe);
         }
     }
-    destroy_q_elem(tmp);
     destroy_queue(q);
 }

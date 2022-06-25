@@ -703,6 +703,7 @@ int check_cfg(config_t* cfg)
     char* param=NULL;
     params_t args;
     args.param=NULL;
+    args.sitename=NULL;
 
     if(cfg->general == NULL)
     {
@@ -732,7 +733,7 @@ int check_cfg(config_t* cfg)
     level_order_traverseRBTree(cfg->hosts, check_section_in_RBtree, &args);
     if(args.param != NULL)
     {
-        if((strncmp(args.param, "servername", 11)))
+        if((strncmp(args.param, hosts_reserved_names[2], 11)))
         {
             WriteLog("Config in section %s does not have necessary parameter '%s' in '%s' virtual host",opening_section_names[2], args.param, args.sitename );
             return -1;
@@ -762,7 +763,7 @@ void* check_section_in_RBtree(node_t* n, void* args)
 
     if((check_section(n->section,&((params_t*)args)->param)) == -1)
     {
-        strncpy(((params_t*)args)->sitename,n->hostname,256);
+        ((params_t*)args)->sitename=n->hostname;
         return -1;
 
     }
