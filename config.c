@@ -718,31 +718,36 @@ int check_cfg(config_t* cfg)
         return -1;
     }
 
-
     if((check_section(cfg->general, &param)) != 0 )
     {
         WriteLog("Config in section %s does not have necessary parameter '%s'",opening_section_names[cfg->general->type], param );
         return -1;
     }
-    if((check_section(cfg->default_vhost, &param)) != 0 )
+    if(cfg->default_vhost != NULL)
     {
-        WriteLog("Config in section %s does not have necessary parameter '%s'",opening_section_names[cfg->default_vhost->type], param );
-        return -1;
-    }
 
-    level_order_traverseRBTree(cfg->hosts, check_section_in_RBtree, &args);
-    if(args.param != NULL)
-    {
-        if((strncmp(args.param, hosts_reserved_names[2], 11)))
+        if((check_section(cfg->default_vhost, &param)) != 0 )
         {
-            WriteLog("Config in section %s does not have necessary parameter '%s' in '%s' virtual host",opening_section_names[2], args.param, args.sitename );
+            WriteLog("Config in section %s does not have necessary parameter '%s'",opening_section_names[cfg->default_vhost->type], param );
             return -1;
         }
-        else
-        {
-            WriteLog("Config in section %s does not have necessary parameter '%s'",opening_section_names[2], args.param );
-            return -1;
+    }
+    else if(cfg->hosts != NULL)
+    {
 
+        level_order_traverseRBTree(cfg->hosts, check_section_in_RBtree, &args);
+        if(args.param != NULL)
+        {
+            if((strncmp(args.param, hosts_reserved_names[2], 11)))
+            {
+                WriteLog("Config in section %s does not have necessary parameter '%s' in '%s' virtual host",opening_section_names[2], args.param, args.sitename );
+                return -1;
+            }
+            else
+            {
+                WriteLog("Config in section %s does not have necessary parameter '%s'",opening_section_names[2], args.param );
+                return -1;
+            }
         }
     }
 
@@ -845,14 +850,13 @@ int load_cfg(config_t* cfg)
         file=NULL;
         len_dir=0;
         memset(fullindexfile,0,sizeof(fullindexfile));
-        if(tmp->node == NILL)// skipping pushing NILL nodes into queue
-            continue;;
-        if(tmp->node->left_node != NULL)
+
+        if(tmp->node->left_node != NILL)
         {
             qe=init_q_elem(tmp->node->left_node);
             push(q, qe);
         }
-        if(tmp->node->right_node != NULL)
+        if(tmp->node->right_node != NILL)
         {
             qe=init_q_elem(tmp->node->right_node);
             push(q, qe);
@@ -873,9 +877,8 @@ int load_cfg(config_t* cfg)
             return -1;
         }
     }
-    destroy_q_elem(tmp);
-    destroy_queue(q);
 
+    destroy_queue(q);
 
     return 0;
 }
@@ -929,7 +932,8 @@ void* action_node(node_t *n, void* args)
 void print_cfg(config_t* cfg)
 {
     print_section(cfg->general);
-    print_section(cfg->default_vhost);
+    if(cfg->default_vhost != NULL)
+        print_section(cfg->default_vhost);
 
     if(cfg->hosts != NULL)
         level_order_traverseRBTree(cfg->hosts, action_node, NULL);

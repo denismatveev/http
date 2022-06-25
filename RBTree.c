@@ -107,8 +107,6 @@ void destroy_rbtree(rb_tree_t* t)
             qe=init_q_elem(tmp->node->right_node);
             push(q, qe);
         }
-
-        destroy_q_elem(tmp);
     }
     destroy_queue(q);
     free(t);
@@ -521,8 +519,6 @@ void printRBTree(rb_tree_t *t)
         if(q->first == NULL || q->last == NULL)
             printf("\n");
     }
-    destroy_q_elem(tmp);
-
     destroy_queue(q);
 }
 
@@ -541,19 +537,15 @@ void level_order_traverseRBTree(rb_tree_t *t, void* (*action)(node_t*, void*), v
     while(!(pop(q, &tmp)))
     {
 
-
-        if(tmp->node == NILL)// skipping pushing NILL nodes into queue
-            continue;
-
         if((action(tmp->node, args)) != 0)
             break;
 
-        if(tmp->node->left_node != NULL)
+        if(tmp->node->left_node != NILL)
         {
             qe=init_q_elem(tmp->node->left_node);
             push(q, qe);
         }
-        if(tmp->node->right_node != NULL)
+        if(tmp->node->right_node != NILL)
         {
             qe=init_q_elem(tmp->node->right_node);
             push(q, qe);
