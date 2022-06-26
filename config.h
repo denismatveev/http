@@ -11,10 +11,22 @@
 typedef struct _node node_t;
 extern node_t nullnode;
 #define NILL (&nullnode)
-extern char *hosts_reserved_names[];
+
 extern char *general_reserved_names[];
 extern char *opening_section_names[];
 extern char *closing_section_names[];
+
+#define HOSTS_RESERVED_NAMES(XX)                       \
+        XX(0, ROOTDIR, rootdir                        )\
+        XX(1, INDEXFILE, indexfile                    )\
+        XX(2, SERVERNAME, servername                  )\
+
+typedef enum hosts_reserved_names
+{
+#define XX(num, name, hosts_reserved_names) HOSTS_RESERVED_NAMES_##name = num,
+    HOSTS_RESERVED_NAMES(XX)
+#undef XX
+}hosts_reserved_names_t;
 
 typedef enum section_type
 {

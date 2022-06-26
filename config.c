@@ -56,10 +56,12 @@ indexfile=index.html;
 // TODO duplicated indexfile is also can be considered as additional file for searching, let's say index.html and index.php
 
 static unsigned int str_number=0;
-char *hosts_reserved_names[] = {
-    "rootdir",
-    "indexfile",
-    "servername",
+
+char *hosts_reserved_names[] =
+{
+    #define XX(num, name, hosts_reserved_names) #hosts_reserved_names,
+    HOSTS_RESERVED_NAMES(XX)
+    #undef XX
     NULL
 };
 char *general_reserved_names[] = {
@@ -69,6 +71,7 @@ char *general_reserved_names[] = {
     "timeout",
     NULL
 };
+// TODO replace explicit defining array of chars by Macro X and put all definitions into h file
 /* Important! Take into account the order of section names is considered ! */
 char* opening_section_names[] = {
     "<General>",

@@ -38,7 +38,7 @@
 #define CRLF "\r\n"
 #define SP " "
 typedef unsigned char u_int_t;
-
+/* here are enums aka X Macros */
 #define HTTP_PROTOCOL(XX)            \
     XX(0,  HTTP10,      HTTP/1.0)    \
     XX(1,  HTTP11,      HTTP/1.1)    \

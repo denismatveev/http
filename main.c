@@ -46,6 +46,11 @@ int main(int argc, char** argv)
         printf("Something went wrong. Check logs\n");
         exit(1);
      }
+    if((check_cfg(cfg) < 0))
+    {
+        printf("Wrong config. Check logs\n");
+        exit(1);
+    }
 
     pid=fork();//child process
 
