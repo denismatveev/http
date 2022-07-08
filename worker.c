@@ -11,10 +11,8 @@
 // shared variables among threads
 pthread_cond_t output_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t input_cond = PTHREAD_COND_INITIALIZER;
-jobs_queue_t* input_queue;
-jobs_queue_t* output_queue;
-extern config_t *cfg;
-
+//jobs_queue_t* input_queue;
+//jobs_queue_t* output_queue;
 
 int create_listener()
 {
@@ -27,7 +25,7 @@ int create_listener()
 
     serv_addr.sin_family=AF_INET;
 
-    port=(uint16_t)atoi(get_value(cfg->general->Set, general_reserved_names[0]));
+    port=(uint16_t)atoi(get_value(cfg->general->Set,general_reserved_names[0] ));
     serv_addr.sin_port=htons(port);
     strncpy(addr_str, get_value(cfg->general->Set, general_reserved_names[1]), 128);
 
@@ -71,7 +69,6 @@ int create_listener()
 
 void run_server()
 {
-    //extern config_t *cfg;
     int conn_sock, nfds, epollfd, sockfd, err, ret;
     struct epoll_event ev, events[MAX_EVENTS];
     epollfd = epoll_create1(0);

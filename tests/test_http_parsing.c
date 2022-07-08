@@ -26,6 +26,8 @@ void print_request(http_request_t* r)
     printf("\n");
 
 }
+
+
 int main(int argc, char** argv)
 {
 
@@ -41,12 +43,16 @@ int main(int argc, char** argv)
 
     char raw_string0[]=" GET / HTTP/1.1\r\nHost: ya.ru\r\nUser-Agent: curl\r\n\r\n";//Request-Line should start from alpha symbol. No space or others allowed
     char raw_string1[]="GET / HTTP/1.1\r\nHost: ya.ru\r\n\r\n";
+    char raw_string_wrong[]="GETT / HTTP/1.1\r\nHost: ya.ru\r\n\r\n";
 
 
-    process_http_data(request, raw_string0);
-    print_request(request);
-    process_http_data(request, raw_string1);
-    print_request(request);
+    if((process_http_data(request, raw_string0)) == 0)
+        print_request(request);
+    if((process_http_data(request, raw_string1)) == 0)
+        print_request(request);
+    if((process_http_data(request, raw_string_wrong)) == 0)
+        print_request(request);
+    else printf("Wrong request\n");
     //if we parsed all successfully, set reason code is 200
     set_reason_code(response, 200);
     //push some additional headers like Content-Type and Content-Length(by name): push_http_header(http_response_t*, char* http_name, char* http_value)
@@ -54,9 +60,8 @@ int main(int argc, char** argv)
     //TODO process_http_request(http_response_t*, http_request_t*) inside the web server
     process_http_response(to_be_sent,response,512);
 
-
-
-
+    printf("A response to be sent:\n");
+    printf("%s\n", to_be_sent);
 
     delete_http_response(response);
     delete_http_request(request);

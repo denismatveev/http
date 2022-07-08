@@ -87,6 +87,12 @@ http_method_t str_to_http_method(const char *sval)
             switch (sval[2])
             {
             case 'T':
+
+                switch (sval[3])
+                {// checking if there is any else symbol
+                case '!' ... '~'://gcc extension only
+                    return INVALID_METHOD;
+                }
                 result = HTTP_METHOD_GET;
                 break;
             default:
@@ -171,6 +177,11 @@ http_method_t str_to_http_method(const char *sval)
                 switch(sval[3])
                 {
                 case 'D':
+                    switch (sval[4])
+                    {
+                    case '!' ... '~':
+                        return INVALID_METHOD;
+                    }
                     result = HTTP_METHOD_HEAD;
                     break;
                 default:
@@ -1733,7 +1744,7 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[]
     return t;
 }
 void destroy_http_header_node(http_header_node_t* header_node)
-{   
+{
     if(header_node == NULL)
         return;
     free(header_node);
@@ -1852,6 +1863,7 @@ int header_name_to_str_value_by_type(const http_header_node_t* node, char name[]
         break;
     case http_response_header:
         http_response_header_to_str(node->http_header,name, HTTP_HEADER_NAME_MAX_LEN);
+        strncpy(value, node->http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
         break;
     default:
         return 1;
@@ -2094,6 +2106,7 @@ int process_http_response(char* response, http_response_t* rs, size_t str_len)
     {
         header_name_to_str_value_by_type(cur, header_name, header_value);
         strncat(response, header_name,str_len);
+        strncat(response, SP ,str_len);
         strncat(response, header_value,str_len);
         strncat(response,CRLF,str_len);
 
