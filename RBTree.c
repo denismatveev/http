@@ -553,3 +553,11 @@ void level_order_traverseRBTree(rb_tree_t *t, void* (*action)(node_t*, void*), v
     }
     destroy_queue(q);
 }
+//  TODO inplement inorder traversal
+// The following function allows getting keys in asceding order
+//void in_order_traversal(rb_tree_t* t, void* (*action),(node_t*, void*), void* args)
+//{
+/* Stack required or two queues */
+
+
+//}

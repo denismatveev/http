@@ -59,16 +59,16 @@ static unsigned int str_number=0;
 
 char *hosts_reserved_names[] =
 {
-    #define XX(num, name, hosts_reserved_names) #hosts_reserved_names,
+#define XX(num, name, hosts_reserved_names) #hosts_reserved_names,
     HOSTS_RESERVED_NAMES(XX)
-    #undef XX
+#undef XX
     NULL
 };
-char *general_reserved_names[] = {
-    "port",
-    "listen",
-    "workers",
-    "timeout",
+char *general_reserved_names[] =
+{
+#define XX(num, name, general_reserved_names) #general_reserved_names,
+    GENERAL_RESERVED_NAMES(XX)
+#undef XX
     NULL
 };
 // TODO replace explicit defining array of chars by Macro X and put all definitions into h file
@@ -738,7 +738,7 @@ int check_cfg(config_t* cfg)
     else if(cfg->hosts != NULL)
     {
 
-        level_order_traverseRBTree(cfg->hosts, check_section_in_RBtree, &args);
+        level_order_traverseRBTree(cfg->hosts, (void*)check_section_in_RBtree, &args);
         if(args.param != NULL)
         {
             if((strncmp(args.param, hosts_reserved_names[2], 11)))
@@ -766,7 +766,7 @@ int check_cfg(config_t* cfg)
     return 0;
 
 }
-void* check_section_in_RBtree(node_t* n, void* args)
+int check_section_in_RBtree(node_t* n, void* args)
 {
 
     if((check_section(n->section,&((params_t*)args)->param)) == -1)
@@ -890,7 +890,7 @@ int reload_cfg(config_t* new_cfg, config_t* current_cfg, const char* filename)
 
     if((create_cfg_from_file(&new_cfg, filename)) == -1)
     {
-        WriteLog("Mew configuration file was not applied. Continue working with previous");
+        WriteLog("New configuration file was not applied. Continue working with previous");
         destroy_cfg(new_cfg);
         new_cfg=current_cfg;
 
@@ -914,7 +914,7 @@ void print_section(section_t section)
     printf("%s\n", opening_section_names[section->type]);
     for(unsigned int i=0; i < section->Set->capacity;i++)
     {
-        if(section->Set->array[i]->key != NULL)
+        if(section->Set->array[i] != NULL)
         {
             printf("%s=",section->Set->array[i]->key);
             printf("%s\n",section->Set->array[i]->value);
@@ -928,6 +928,7 @@ void print_section_node(node_t* n)
 }
 void* action_node(node_t *n, void* args)
 {
+    args=NULL;//this is only for suppressing message "unused parameter args"
     print_section(n->section);
     return 0;
 }

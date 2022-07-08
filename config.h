@@ -2,8 +2,10 @@
 #define CONFIG_TREE_H
 #include<stdio.h>
 #include<string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 #include"associative.h"
-
 
 #define INVALID_GENERAL_KEY -1
 #define INVALID_HOSTS_KEY -2
@@ -12,7 +14,6 @@ typedef struct _node node_t;
 extern node_t nullnode;
 #define NILL (&nullnode)
 
-extern char *general_reserved_names[];
 extern char *opening_section_names[];
 extern char *closing_section_names[];
 
@@ -28,13 +29,42 @@ typedef enum hosts_reserved_names
 #undef XX
 }hosts_reserved_names_t;
 
+#define GENERAL_RESERVED_NAMES(XX)                 \
+    XX(0, PORT, port                              )\
+    XX(1, LISTEN, listen                          )\
+    XX(2, WORKERS, workers                        )\
+    XX(3, TIMEOUT, timeout                        )
+typedef enum
+{
+#define XX(num, name, general_reserved_names) GENERAL_RESERVED_NAMES_##name = num,
+    GENERAL_RESERVED_NAMES(XX)
+#undef XX
+}general_reserved_names_t;
+
+extern char *hosts_reserved_names[];
+extern char *general_reserved_names[];
 typedef enum section_type
 {
     Section_General=0,// General section contains info such as port, timeout, workers,listening interface etc
     Section_Default=1,// this config is used if any of 'Host' config is not suitable
     Section_Host=2 // Host config describes virtual host
 }section_type_t;
-
+//TODO replace assoc_t by the struct below
+/*
+typedef struct __hosts_section_data
+{
+    char rootdir[256];
+    char indexfile[256];
+    char servername[256];
+    uint16_t port;
+}hosts_section_data_t;
+typedef struct __general_section_data
+{
+    char workers;
+    unsigned int timeout;
+    struct in_addr listern_addr;
+}general_section_data_t;
+*/
 typedef struct __section
 {
     section_type_t type;
@@ -49,8 +79,8 @@ typedef struct config
     rb_tree_t *hosts;
     section_t general;
     section_t default_vhost;
-
 }config_t;
+extern config_t* cfg;
 /* Red Black tree structures */
 typedef enum color
 {
@@ -117,7 +147,7 @@ void print_cfg(config_t* cfg);
 void print_section(section_t section);
 void print_node(node_t* n);
 void* action_node(node_t* node, void*);
-void *check_section_in_RBtree(node_t*, void*);
+int check_section_in_RBtree(node_t*, void*);
 void level_order_traverseRBTree(rb_tree_t *t, void*(*action)(node_t*, void*), void *);
 
 

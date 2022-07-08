@@ -12,7 +12,7 @@ assoc_t* init_assoc_array(void)
     assoc->capacity=64;
     assoc->current_size=0;
 
-    if((assoc->array=(tuple_t*)calloc(sizeof(tuple_t), assoc->capacity)) == NULL)
+    if((assoc->array=(tuple_t*)calloc(sizeof(tuple_t), assoc->capacity)) == NULL)//calloc() initializes memory by zero
         return NULL;
 
     return assoc;
