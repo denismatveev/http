@@ -9,8 +9,9 @@
 typedef struct __job
 {
   http_request_t *req;
-  raw_client_data_t *raw_data;
   http_response_t *response;
+  int fd;// client socket
+  char raw_data[INITIAL_DATA_SIZE];
 } job;
 
 typedef job job_t;

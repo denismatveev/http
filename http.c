@@ -19,13 +19,18 @@ static char *reason_code_name[] =
     #undef XX
 };
 
+static char *entity_header_content_type_str[] =
+{
+    #define XX(num, name, entity_content_type_str) #entity_content_type_str,
+    HTTP_ENTITY_HEADER_CONTENT_TYPE(XX)
+    #undef XX
+};
 static char *content_type_str[] =
 {
     #define XX(num, name, content_type_str) #content_type_str,
     HTTP_CONTENT_TYPE(XX)
     #undef XX
 };
-
 static char *general_header_str[] =
 {
     #define XX(num, name, general_header_str) #general_header_str,
@@ -434,29 +439,29 @@ http_protocol_version_t str_to_http_protocol(const char *sval)
 // convert content_type into string
 // It is for supported MIMEs, you must ajust CONTENT_TYPE_MAX_LENGTH for new implemented types
 
-int content_type_to_str(char *str, http_content_type_t ct, unsigned char str_len)
+int content_type_to_str(char *str, http_entity_header_content_type_t ct, unsigned char str_len)
 {
     if(str_len < CONTENT_TYPE_MAX_LENGTH)
         return 2;
     switch (ct)
     {
     case CONTENT_TEXT_HTML:
-        strncpy(str,content_type_str[0], str_len);
+        strncpy(str,entity_header_content_type_str[0], str_len);
         break;
     case CONTENT_IMAGE_JPG:
-        strncpy(str,content_type_str[1], str_len);
+        strncpy(str,entity_header_content_type_str[1], str_len);
         break;
     case CONTENT_APPLICATION_PDF:
-        strncpy(str,content_type_str[2], str_len);
+        strncpy(str,entity_header_content_type_str[2], str_len);
         break;
     case CONTENT_IMAGE_PNG:
-        strncpy(str,content_type_str[3], str_len);
+        strncpy(str,entity_header_content_type_str[3], str_len);
         break;
     case CONTENT_VIDEO_MPEG:
-        strncpy(str,content_type_str[4], str_len);
+        strncpy(str,entity_header_content_type_str[4], str_len);
         break;
     case CONTENT_TEXT_CSS:
-        strncpy(str,content_type_str[5], str_len);
+        strncpy(str,entity_header_content_type_str[5], str_len);
         break;
     default:
         return 1;
@@ -1736,12 +1741,29 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[]
 
     if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
         return NULL;
+
+    if(http_header == ENTITY_HEADER_CONTENT_TYPE )
+        if((validation_content_type(http_header_value)) != 0)
+            return NULL;
     t->type=type;
     t->http_header=http_header;
     strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
     t->next = NULL;
 
     return t;
+}
+int validation_content_type(const char *ct)
+{
+
+    char buff[HTTP_HEADER_VALUE_MAX_LEN];
+    memset(buff, 0, HTTP_HEADER_VALUE_MAX_LEN);
+    strncat(buff, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], HTTP_HEADER_VALUE_MAX_LEN);
+    strncat(buff," ", 64);
+    strncat(buff,ct, 64);
+    for (int i = 0; entity_header_content_type_str[i] != NULL; ++i)
+        if (!(strncmp(buff, entity_header_content_type_str[i], HTTP_HEADER_VALUE_MAX_LEN)))
+            return 0;
+    return INVALID_ENTITY_HEADER_MIME;
 }
 void destroy_http_header_node(http_header_node_t* header_node)
 {
@@ -1792,15 +1814,21 @@ int push_http_header_to_list(http_headers_list_t* list, http_header_node_t* head
     if(list == NULL || header == NULL)
         return -1;
 
-    current=list->first;
+    if(list->capacity < list->limit)
+    {
+        current=list->first;
 
-    while(current->next != NULL)
-        current=current->next;
+        while(current->next != NULL)
+            current=current->next;
 
-    current->next=header;
-    list->capacity++;
+        current->next=header;
+        list->capacity++;
+        return 0;
+    }
 
-    return 0;
+    return 1;
+
+
 }
 
 
@@ -2004,8 +2032,9 @@ http_response_t* init_http_response(void)
         return NULL;
 
     response->headers=NULL;
-    response->sl.rc=200;//default value
+    response->sl.rc=0;
     response->sl.hv=PROTO_HTTP11;// server implemented to serve HTTP/1.1
+    memset(response->message_body, 0, sizeof(response->message_body));
 
     return response;
 }
@@ -2043,26 +2072,26 @@ long get_file_size(int fd)
 }
 // converts file extension into mime type
 // max file extension length is 5
-http_content_type_t get_file_MIME_type(const char* filename)
+http_entity_header_content_type_t get_file_MIME_type(const char* filename)
 {
     char *fileExtension;
     if ((fileExtension = strrchr(filename, '.')) == NULL)
-        return INVALID_MIME;
+        return INVALID_ENTITY_HEADER_MIME;
 
-    http_content_type_t mime = CONTENT_TEXT_HTML;
+    http_entity_header_content_type_t mime = CONTENT_TEXT_HTML;
 
     for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
         if (!(strncmp(fileExtension, file_ext[i], 5)))
             return mime;
-    return INVALID_MIME;
+    return INVALID_ENTITY_HEADER_MIME;
 
 }
 
 int file_MIME_type_to_str(char* content_type, const char* filename, unsigned char type_len)
 {
-    http_content_type_t ct;
+    http_entity_header_content_type_t ct;
 
-    if((ct = get_file_MIME_type(filename)) == INVALID_MIME)
+    if((ct = get_file_MIME_type(filename)) == INVALID_ENTITY_HEADER_MIME)
     {
         WriteLog("Invalid MIME type, unsupported file extension");
         return -1;
@@ -2080,23 +2109,14 @@ int file_MIME_type_to_str(char* content_type, const char* filename, unsigned cha
 // creates a serialized response to be sent to client
 int process_http_response(char* response, http_response_t* rs, size_t str_len)
 {
-
-    char status_line[STATUS_LINE_MAX_LENGTH];
-    char date[DATE_HEADER_MAX_LENGTH];
-    http_headers_list_t* list;
-    http_header_node_t *node, *cur;
-    //initialize headers list and push 'Server' header
-    node=init_http_response_header_node("Server:", SERVERNAME);
     char header_name[HEADER_VALUE_MAX_LENGTH],header_value[HEADER_VALUE_MAX_LENGTH];
+    char status_line[STATUS_LINE_MAX_LENGTH];
+    http_header_node_t *cur;
 
-    list=init_http_headers_list(node);
-    rs->headers=list;
-    // Pushing Status-Line
+    if(rs->sl.hv == 0 || rs->sl.rc == 0)
+        return -1;
     status_line_to_str(status_line, rs->sl.hv, rs->sl.rc, STATUS_LINE_MAX_LENGTH);
-    get_current_date_str(date);// DATE must be present in all responses except some cases: 1. 500 error(if it is impossible) 2. 100 code - optional, 3. if server does not have clock
-    //Initialize 'Date' header and push it
-    node=init_http_response_header_node("Date:", date);
-    push_http_header_to_list(list, node);
+
 
     strncat(response, status_line, str_len);
     strncat(response, CRLF,str_len);
@@ -2112,11 +2132,11 @@ int process_http_response(char* response, http_response_t* rs, size_t str_len)
 
         cur=cur->next;
     }
+    strncat(response,CRLF,str_len);
 
     return 0;
-
-
 }
+
 int set_reason_code(http_response_t* r, int code)
 {
 
@@ -2144,6 +2164,38 @@ int set_reason_code(http_response_t* r, int code)
 
 }
 
+int add_header_to_response(http_response_t* resp, char* header_name, char* header_value)
+{
+    http_headers_list_t* list=NULL;
+    http_header_node_t *node;
+    int ret;
+
+    if( header_name != NULL && header_value != NULL)
+        if((node=init_http_response_header_node(header_name, header_value)) == NULL)
+            return -1;
+
+    if(resp->headers == NULL)
+    {
+        if((list=init_http_headers_list(node)) == NULL)
+        {
+            destroy_http_header_node(node);
+            return -1;
+        }
+        resp->headers=list;
+        return 0;
+    }
+
+    if((ret=push_http_header_to_list(resp->headers, node)) == -1)
+        return -1;
+    else if(ret == 1)
+    {
+        WriteLog("Too many headers in response");
+        return 1;
+    }
+
+
+    return 0;
+}
 
 int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
 {
@@ -2182,6 +2234,56 @@ int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
         return 1;
 
     }
+
+    return 0;
+}
+int add_file_as_message_body(http_response_t * response, int fd, const char* filename)
+{
+    // this function adds only entity headers allowing sending files in a response
+    long size;
+    char content_type[128];
+    http_entity_header_content_type_t ct;
+
+    if(response == NULL || fd == 0)
+        return -1;
+
+    size=get_file_size(fd);
+
+
+    //    file_MIME_type_to_str(content_type, filename, 64);
+    if((ct = get_file_MIME_type(filename)) == INVALID_ENTITY_HEADER_MIME)
+    {
+        WriteLog("Invalid MIME type, unsupported file extension");
+        return -1;
+    }
+    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[ct])) != 0)
+        return 1;
+    long_to_str(content_type, size);
+    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type)) !=0 )
+        return 1;
+
+    // then use sendfile() in a caller to send data to a client
+
+    return 0;
+}
+
+
+// this function is useful to read response from cgi, fastcgi server or similar
+int add_message_body(http_response_t * response, int fd)
+{
+    long size=0;
+    char content_type_len[128];
+    if(response == NULL || fd == 0)
+        return -1;
+
+    //TODO implement errors handle
+    size = read(fd, response->message_body, MAX_BODY_SIZE);// TODO timeout of reading from socket
+
+    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[CONTENT_TEXT_HTML])) !=0)
+        return 1;
+    long_to_str(content_type_len, size);
+    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type_len)) != 0)
+        return 1;
 
     return 0;
 }

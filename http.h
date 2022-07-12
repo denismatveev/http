@@ -24,7 +24,7 @@
 #define INITIAL_DATA_SIZE (8+REQUEST_URI_STRING_LENGTH+9+HTTP_HEADERS_MAX_SIZE) //method+request-uri+http-version+headers
 #define HEADERS_LIMIT 64 //total number of headers(general,request, entity, response headers)
 #define MAX_EVENTS 10
-#define SERVERNAME "Maya web server"
+#define SERVERNAME "Maya"
 #define CONTENT_TYPE_MAX_LENGTH 16
 #define HTTP_PROTOCOL_VERSION_MAX_LENGTH 9
 #define REASON_CODE_NAME_MAX_LENGTH 21
@@ -34,6 +34,7 @@
 #define DATE_HEADER_MAX_LENGTH 64
 #define HEADER_VALUE_MAX_LENGTH 512
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
+#define MAX_BODY_SIZE 1024*1024 // default is 1Mb
 
 #define CRLF "\r\n"
 #define SP " "
@@ -70,13 +71,13 @@ typedef enum reason_code
 #undef XX
 }http_reason_code_t;
 
-#define HTTP_CONTENT_TYPE(XX)                                         \
-    XX(0, TEXT_HTML,            Content-Type: text/html)              \
-    XX(1, IMAGE_JPG,            Content-Type: image/jpg)              \
-    XX(2, APPLICATION_PDF,      Content-Type: application/pdf)        \
-    XX(3, IMAGE_PNG,            Content-Type: image/png)              \
-    XX(4, VIDEO_MPEG,           Content-Type: video/mpeg)             \
-    XX(5, TEXT_CSS,             Content-Type: text/css)               \
+#define HTTP_CONTENT_TYPE(XX)                       \
+XX(0, TEXT_HTML,            text/html)              \
+XX(1, IMAGE_JPG,            image/jpg)              \
+XX(2, APPLICATION_PDF,      application/pdf)        \
+XX(3, IMAGE_PNG,            image/png)              \
+XX(4, VIDEO_MPEG,           video/mpeg)             \
+XX(5, TEXT_CSS,             text/css)               \
 
 typedef enum content_type
 {
@@ -85,6 +86,22 @@ typedef enum content_type
 #undef XX
     INVALID_MIME = -1
 } http_content_type_t;
+
+#define HTTP_ENTITY_HEADER_CONTENT_TYPE(XX)                           \
+    XX(0, TEXT_HTML,            Content-Type: text/html)              \
+    XX(1, IMAGE_JPG,            Content-Type: image/jpg)              \
+    XX(2, APPLICATION_PDF,      Content-Type: application/pdf)        \
+    XX(3, IMAGE_PNG,            Content-Type: image/png)              \
+    XX(4, VIDEO_MPEG,           Content-Type: video/mpeg)             \
+    XX(5, TEXT_CSS,             Content-Type: text/css)               \
+
+typedef enum entity_content_type
+{
+#define XX(num, name, entity_content_type) ENTITY_HEADER_CONTENT_##name = num,
+    HTTP_ENTITY_HEADER_CONTENT_TYPE(XX)
+#undef XX
+    INVALID_ENTITY_HEADER_MIME = -1
+} http_entity_header_content_type_t;
 
 #define HTTP_GENERAL_HEADER(XX)                       \
     XX(0, CACHE_CONTROL,      Cache-Control:)         \
@@ -120,10 +137,10 @@ typedef enum __header_type
     XX(1, CONTENT_ENCODING,       Content-Encoding:)     \
     XX(2, CONTENT_LANGUAGE,       Content-Language:)     \
     XX(3, CONTENT_LENGTH,         Content-Length:)       \
-    XX(4, CONTENT_LOCATION,       Content-Location::)    \
+    XX(4, CONTENT_LOCATION,       Content-Location:)    \
     XX(5, CONTENT_MD5,            Content-MD5:)          \
     XX(6, CONTENT_RANGE,          Content-Range:)        \
-    XX(7, CONTENT_TYPE,           Content-Type::)        \
+    XX(7, CONTENT_TYPE,           Content-Type:)        \
     XX(8, EXPIRES,                Expires:)              \
     XX(9, LAST_MODIFIED,          Last-Modified:)        \
 
@@ -217,7 +234,7 @@ typedef struct __http_request
     http_request_line_t req_line;
     http_headers_list_t* headers;
     unsigned char parsing_result;
-    //char* message_body[1024];//TODO find out in https://tools.ietf.org/html/rfc2616 size of message_body. message_body should not always be sent in request if that request does not imply this
+    char* message_body[MAX_BODY_SIZE];//TODO find out in https://tools.ietf.org/html/rfc2616 size of message_body. message_body should not always be sent in request if that request does not imply this
     //(GET should not be sent message_body)
 } http_request_t;
 
@@ -254,50 +271,37 @@ typedef struct __http_response
 {
     http_status_line_t sl;
     http_headers_list_t* headers;
-    //int fd; // file descriptor to be sent(in case of error page or requesting a file) // TODO this is not a suitable place for storing socket in http parsing library. Move to jobs
+    char message_body[MAX_BODY_SIZE];
 
 }http_response_t;
 
 /* Functions */
-
-/* General functions */
-/* str_to() family - transform header numeric representation into word to be sent as a response
- * create() family - fill in data structures with passed data
- * init() and destroy family - allocate memory for data structures and delete it
- * parse() family - parse string from http request
- * process()
- */
 /*
- *
  * GET /query.php?firstname=denis&lastname=matveev HTTP/1.1 \r\n Host:denismatveev.me \r\n
  * The result of stage 1:
 
  *
  */
+
+/* Request related functions */
+/* Interface */
+
+http_request_t* init_http_request(void);
+void delete_http_request(http_request_t*);
+int process_http_data(http_request_t*, char *);//converts string -> http_request_t
+/* inner functions */
 http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[]);
 http_header_node_t* init_http_response_header_node(const char http_header_name[], const char http_header_value[]);
 void destroy_http_header_node(http_header_node_t*);
 http_headers_list_t* init_http_headers_list(http_header_node_t *first_node);
 void destroy_http_headers_list(http_headers_list_t*);
+int create_http_request(http_request_t* request, http_headers_list_t *list, http_request_line_t req_line);
 int push_http_header_to_list(http_headers_list_t* list, http_header_node_t* header);
 http_general_header_t str_to_http_general_header(const char *);
 http_entity_header_t str_to_http_entity_header(const char *);
 http_response_header_t str_to_http_response_header(const char *);
 http_request_header_t str_to_http_request_header(const char *h);
-
-/* Request related functions */
-
-int create_http_request(http_request_t* request, http_headers_list_t *list, http_request_line_t req_line);
 int parse_http_header_line(char* header_line, char *header, char *value);
-
-// process client raw data and put into request structure
-// input: char*
-// output: http_request_t*
-// returns 0 if OK, 1 if failed
-int process_http_data(http_request_t*, char *);
-http_request_t* init_http_request(void);
-void delete_http_request(http_request_t*);
-
 // parses Request-Line
 // input: char*
 // output: http_request_line
@@ -311,9 +315,16 @@ http_method_t str_to_http_method(const char *);
 http_protocol_version_t str_to_http_protocol(const char *);
 
 /* Response related functions */
+/* Interface */
 http_response_t* init_http_response(void);
 void delete_http_response(http_response_t*);
 int create_http_response(http_response_t* response, http_headers_list_t *list, http_status_line_t status);
+int process_http_response(char* response, http_response_t *rs, size_t str_len);// converts http_response_t -> string
+int set_reason_code(http_response_t* r, int code);
+int add_header_to_response(http_response_t* resp, char* header_name, char *header_value);
+
+/* inner functions */
+
 // serialize response to be sent
 // input: http_response_t* r
 // output: char* serialized_response
@@ -323,14 +334,13 @@ long get_file_size(int fd);
 // input: char* filename
 // output: content type http_content_type_t
 // returns http_content_type_t
-http_content_type_t get_file_MIME_type(const char *filename);
+http_entity_header_content_type_t get_file_MIME_type(const char *filename);
 // gets content file type in c string by filename
 // input: char* filename
 // output: char* content type
 // returns 0 if OK, 1 if failed
 
-int get_file_MIME_type_in_str(char* content_type, const char* filename);
-
+int file_MIME_type_to_str(char* content_type, const char* filename, unsigned char type_len);
 // creates status line
 // input http_protocol_version_t, http_reason_code_t
 // output char*, buffer must be at least STATUS_LINE_MAX_LENGTH length
@@ -339,13 +349,14 @@ int status_line_to_str(char*, http_protocol_version_t, http_reason_code_t, unsig
 int http_ptorocol_code_to_str(char *str, http_protocol_version_t rt, unsigned char str_len);
 int reason_code_to_str(char *, http_reason_code_t, unsigned char len);
 int http_method_to_str(http_method_t h, char* str, unsigned char str_len);
-// set functions
-int set_reason_code(http_response_t* r, int code);
-int content_type_to_str(char *str, http_content_type_t ct, unsigned char str_len);
+
+int content_type_to_str(char *str, http_entity_header_content_type_t ct, unsigned char str_len);
 int http_general_header_to_str(http_general_header_t h, char* str, unsigned char str_len);
 int http_request_header_to_str(http_request_header_t h, char* str, unsigned char str_len);
 int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char str_len);
 int http_response_header_to_str(http_response_header_t h, char* str, unsigned char str_len);
-int process_http_response(char* response, http_response_t *rs, size_t str_len);
+
 int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
+int validation_content_type(const char* ct);
+int add_file_as_message_body(http_response_t * response, int fd, const char* filename);
 #endif /*_HTTP_H*/

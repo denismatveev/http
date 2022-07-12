@@ -123,7 +123,7 @@ typedef enum content_type
     video_mpeg,
     text_css,
     INVALID_MIME = -1
-}http_content_type_t;
+}http_entity_header_content_type_t;
 
 typedef enum __general_header
 {
@@ -342,7 +342,7 @@ long get_file_size(int fd);
 // input: char* filename
 // output: content type http_content_type_t
 // returns http_content_type_t
-http_content_type_t get_file_MIME_type(const char *filename);
+http_entity_header_content_type_t get_file_MIME_type(const char *filename);
 // gets content file type in c string by filename
 // input: char* filename
 // output: char* content type
