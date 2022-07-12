@@ -32,8 +32,9 @@ int main(int argc, char** argv)
 
     // an example how to use library for parsing a request
     http_request_t* request;
-    http_response_t* response;
+    http_response_t* response, *response1;
     response=init_http_response();// initializing empty response
+    response1=init_http_response();
 
     int fd;
     char date[DATE_HEADER_MAX_LENGTH];
@@ -60,18 +61,29 @@ int main(int argc, char** argv)
     add_header_to_response(response, "Date:", date);
     add_header_to_response(response, "Server:", "Maya");
     fd=open("index.html", O_RDONLY);
-    add_file_as_message_body(response, fd, "index.html");
+    add_file_as_message_body(response, fd, "index.html", SET_MESSAGE_BODY);
 //    add_header_to_response(response,"Content-Type:", "text/html");
 //    add_header_to_response(response,"Content-Length:", "12800");
-    //push some additional headers like Content-Type and Content-Length(by name): push_http_header(http_response_t*, char* http_name, char* http_value)
-    //Or push by enum(in case of using in web server to prevent double converting(string to number, then number to string): push_http_data(http_response_t*, int header_type, int header_name, char* header_value)
-    //TODO process_http_request(http_response_t*, http_request_t*) inside the web server
+
     process_http_response(to_be_sent,response,512);
 
     printf("A response to be sent:\n");
     printf("%s\n", to_be_sent);
 
+    memset(to_be_sent, 0, sizeof (to_be_sent));
+
+
+
+    add_header_to_response(response1, "Date:", date);
+    add_header_to_response(response1, "Server:", "Maya");
+    create_error_message(response1, 501, NO_MESSAGE_BODY);
+    process_http_response(to_be_sent,response1,512);
+    printf("A response to be sent:\n");
+    printf("%s\n", to_be_sent);
+
+    close(fd);
     delete_http_response(response);
+    delete_http_response(response1);
     delete_http_request(request);
 
     // an example how to use library for creating a response
