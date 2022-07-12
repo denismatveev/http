@@ -2078,7 +2078,7 @@ http_entity_header_content_type_t get_file_MIME_type(const char* filename)
     if ((fileExtension = strrchr(filename, '.')) == NULL)
         return INVALID_ENTITY_HEADER_MIME;
 
-    http_entity_header_content_type_t mime = CONTENT_TEXT_HTML;
+    http_entity_header_content_type_t mime = ENTITY_HEADER_CONTENT_TEXT_HTML;
 
     for (int i = 0; file_ext[i] != NULL; ++i, ++mime)
         if (!(strncmp(fileExtension, file_ext[i], 5)))
@@ -2237,7 +2237,7 @@ int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
 
     return 0;
 }
-int add_file_as_message_body(http_response_t * response, int fd, const char* filename)
+int add_file_as_message_body(http_response_t * response, int fd, const char* filename, char flags)
 {
     // this function adds only entity headers allowing sending files in a response
     long size;
@@ -2258,9 +2258,12 @@ int add_file_as_message_body(http_response_t * response, int fd, const char* fil
     }
     if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[ct])) != 0)
         return 1;
-    long_to_str(content_type, size);
-    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type)) !=0 )
-        return 1;
+    if(flags & SET_MESSAGE_BODY)
+    {
+        long_to_str(content_type, size);
+        if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type)) !=0 )
+            return 1;
+    }
 
     // then use sendfile() in a caller to send data to a client
 
@@ -2269,21 +2272,77 @@ int add_file_as_message_body(http_response_t * response, int fd, const char* fil
 
 
 // this function is useful to read response from cgi, fastcgi server or similar
-int add_message_body(http_response_t * response, int fd)
+int add_message_body(http_response_t * response, const int fd, char flags)
 {
     long size=0;
     char content_type_len[128];
     if(response == NULL || fd == 0)
         return -1;
 
-    //TODO implement errors handle
+    //TODO implement errors handling
     size = read(fd, response->message_body, MAX_BODY_SIZE);// TODO timeout of reading from socket
 
     if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[CONTENT_TEXT_HTML])) !=0)
         return 1;
-    long_to_str(content_type_len, size);
-    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type_len)) != 0)
-        return 1;
+    if(flags & SET_MESSAGE_BODY)
+    {
+        long_to_str(content_type_len, size);
+        if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type_len)) != 0)
+            return 1;
+    }
 
     return 0;
 }
+
+int add_error_message(http_response_t* response, char* error, char flags)
+{
+    // variable 'error' is a static buffer with html code of the error
+    long size;
+    char len[128];
+    if(response == NULL)
+        return -1;
+
+    size=sizeof(error);
+    long_to_str(len, size);
+
+
+    if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[CONTENT_TEXT_HTML])) != 0)
+        return 1;
+    if(flags & SET_MESSAGE_BODY)
+    {
+        long_to_str(len, size);
+        if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], len)) !=0 )
+            return 1;
+    }
+    return 0;
+    // then use write(), send() or sendto() etc syscalls
+}
+
+int create_error_message(http_response_t* response, int error, char flags)
+{
+    switch (error)
+    {
+    case 404:
+        set_reason_code(response, 404);
+        add_error_message(response, not_found_error,  flags);
+        break;
+    case 400:
+        set_reason_code(response, 400);
+        add_error_message(response, bad_request_error,  flags);
+        break;
+    case 501:
+        set_reason_code(response, 501);
+        add_error_message(response, not_implemented_error, flags);
+        break;
+    case 503:
+        set_reason_code(response, 503);
+        add_error_message(response, internal_error, flags);
+        break;
+    default:
+        return 1;
+
+    }
+
+    return 0;
+}
+

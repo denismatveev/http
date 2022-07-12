@@ -35,6 +35,8 @@
 #define HEADER_VALUE_MAX_LENGTH 512
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
 #define MAX_BODY_SIZE 1024*1024 // default is 1Mb
+#define SET_MESSAGE_BODY 0x0001
+#define NO_MESSAGE_BODY 0x0000
 
 #define CRLF "\r\n"
 #define SP " "
@@ -358,5 +360,9 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
 
 int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
 int validation_content_type(const char* ct);
-int add_file_as_message_body(http_response_t * response, int fd, const char* filename);
+int add_file_as_message_body(http_response_t * response, int fd, const char* filename, char flags);
+int add_message_body(http_response_t * response, const int fd, char flags);
+int add_error_message(http_response_t* response, char* error, char flags);
+int create_error_message(http_response_t* response, int error, char flags);
+
 #endif /*_HTTP_H*/

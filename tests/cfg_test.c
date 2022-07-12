@@ -19,7 +19,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    section=search_for_host_in_cfg(cfg, "site5.example.com");
+    section=search_for_host_in_cfg(cfg, "site2.example.com");
     if(section == NULL)
     {
         printf("Not found\n");
