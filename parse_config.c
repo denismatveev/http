@@ -51,6 +51,7 @@ int parse_cfg(config_t *cfg, const char* fname)
             if((strparam=parse_str(str,del, end)) == NULL)
             {
                 WriteLog("Invalid config near %s",str);
+                close(f);
                 return -1;
             }
             port=(uint16_t)atoi(strparam);
@@ -63,6 +64,7 @@ int parse_cfg(config_t *cfg, const char* fname)
                 if((strparam=parse_str(str,del,end)) == NULL)
                 {
                     WriteLog("Invalid config near %s",str);
+                    close(f);
                     return -1;
                 }
 
@@ -74,6 +76,7 @@ int parse_cfg(config_t *cfg, const char* fname)
                 else
                 {
                     WriteLog("Invalid IP address");
+                    close(f);
                     return -1;
                 }
             }
@@ -83,6 +86,7 @@ int parse_cfg(config_t *cfg, const char* fname)
                     if((strparam=parse_str(str,del,end)) == NULL)
                     {
                         WriteLog("Invalid config near %s",str);
+                        close(f);
                         return -1;
                     }
                     cfg->workers=atoi(strparam);
@@ -94,6 +98,7 @@ int parse_cfg(config_t *cfg, const char* fname)
                         if((strparam=parse_str(str,del,end)) == NULL)
                         {
                             WriteLog("Invalid config near %s",str);
+                            close(f);
                             return -1;
                         }
                         if((strncmp("/",strparam,1) == 0)) // absolute path
@@ -105,7 +110,7 @@ int parse_cfg(config_t *cfg, const char* fname)
                         WriteLog("Setting rootdir = %s",cfg->rootdir);
                     }
     }
-
+    close(f);
     return 0;
 }
 
