@@ -74,7 +74,7 @@ static char* bad_request_error = "<html><body><head><title>400 Bad Request</titl
 static char* not_found_error = "<html><body><head><title>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>";
 static char* internal_error = "<html><body><head><title>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
 static char* not_implemented_error = "<html><body><head><title>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
-
+static char* forbidden_error = "<html><body><head><title>403 Forbidden</title></head><center><h1> 403 Forbidden <h1></center></body></html>";
 // According to RFC2616 a method must be case sensitive
 // Implied the passing string is null terminated, but doesn't verified if there is '\0' at the end position
 // A caller must take care about null terminating
@@ -1936,14 +1936,14 @@ int process_http_data(http_request_t *req, char *rd)
     if((tok = strtok_r(rd, CRLF, &saveptr)) == NULL)// search for Request-Line
     {
         req->parsing_result=1;
-        return 1;
+        return 0;
     }
 
 
     if((parse_request_line(&req_line, tok)) != 0)
     {
         req->parsing_result=1;
-        return 1;
+        return 0;
     }
 
     while(((tok = strtok_r(NULL, CRLF, &saveptr)) != NULL) && count < HEADERS_LIMIT)
@@ -1951,7 +1951,7 @@ int process_http_data(http_request_t *req, char *rd)
         if((parse_http_header_line(tok, header, value)) != 0)
         {
             req->parsing_result=1;
-            return 1;
+            return 0;
         }
         if(count == 0)
         {
@@ -2034,7 +2034,6 @@ http_response_t* init_http_response(void)
     response->headers=NULL;
     response->sl.rc=0;
     response->sl.hv=PROTO_HTTP11;// server implemented to serve HTTP/1.1
-    memset(response->message_body, 0, sizeof(response->message_body));
 
     return response;
 }
@@ -2237,7 +2236,7 @@ int http_method_to_str(http_method_t h, char* str, unsigned char str_len)
 
     return 0;
 }
-int add_file_as_message_body(http_response_t * response, int fd, const char* filename, char flags)
+int add_file_as_message_body(http_response_t * response, const int fd, const char* filename, char flags)
 {
     // this function adds only entity headers allowing sending files in a response
     long size;
@@ -2249,8 +2248,6 @@ int add_file_as_message_body(http_response_t * response, int fd, const char* fil
 
     size=get_file_size(fd);
 
-
-    //    file_MIME_type_to_str(content_type, filename, 64);
     if((ct = get_file_MIME_type(filename)) == INVALID_ENTITY_HEADER_MIME)
     {
         WriteLog("Invalid MIME type, unsupported file extension");
@@ -2258,9 +2255,10 @@ int add_file_as_message_body(http_response_t * response, int fd, const char* fil
     }
     if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[ct])) != 0)
         return 1;
-    if(flags & SET_MESSAGE_BODY)
+    if(flags & SET_MSG_BODY)
     {
         long_to_str(content_type, size);
+        response->message_body_size=size;
         if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type)) !=0 )
             return 1;
     }
@@ -2272,21 +2270,22 @@ int add_file_as_message_body(http_response_t * response, int fd, const char* fil
 
 
 // this function is useful to read response from cgi, fastcgi server or similar
-int add_message_body(http_response_t * response, const int fd, char flags)
+int read_message_body_from_socket(http_response_t * response, const int socket, char flags)
 {
     long size=0;
     char content_type_len[128];
-    if(response == NULL || fd == 0)
+    if(response == NULL || socket == 0)
         return -1;
 
     //TODO implement errors handling
-    size = read(fd, response->message_body, MAX_BODY_SIZE);// TODO timeout of reading from socket
+    size = read(socket, response->message_body, MAX_MSG_BODY_SIZE);// TODO timeout of reading from socket
 
     if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[CONTENT_TEXT_HTML])) !=0)
         return 1;
-    if(flags & SET_MESSAGE_BODY)
+    if(flags & SET_MSG_BODY)
     {
         long_to_str(content_type_len, size);
+        response->message_body_size=size;
         if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], content_type_len)) != 0)
             return 1;
     }
@@ -2308,11 +2307,13 @@ int add_error_message(http_response_t* response, char* error, char flags)
 
     if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], content_type_str[CONTENT_TEXT_HTML])) != 0)
         return 1;
-    if(flags & SET_MESSAGE_BODY)
+    if(flags & SET_MSG_BODY)
     {
         long_to_str(len, size);
+        response->message_body_size=size;
         if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], len)) !=0 )
             return 1;
+        response->message_body[0]=*error;
     }
     return 0;
     // then use write(), send() or sendto() etc syscalls
@@ -2330,6 +2331,10 @@ int create_error_message(http_response_t* response, int error, char flags)
         set_reason_code(response, 400);
         add_error_message(response, bad_request_error,  flags);
         break;
+    case 403:
+        set_reason_code(response, 403);
+        add_error_message(response, forbidden_error,  flags);
+        break;
     case 501:
         set_reason_code(response, 501);
         add_error_message(response, not_implemented_error, flags);
@@ -2345,4 +2350,62 @@ int create_error_message(http_response_t* response, int error, char flags)
 
     return 0;
 }
+//the function below finds a header in http_request_t and returns a pointer to header which contains necessary header
+int find_header_by_name(http_header_node_t* hn, const http_request_t* hr, char * header)
+{
+    http_header_node_t* tmp=NULL;
 
+    http_request_header_t request_header;
+    http_entity_header_t entity_header;
+    http_general_header_t general_header;
+    http_header_type_t type;
+
+
+    if(hr == NULL)
+        return 0;
+    if((request_header = str_to_http_request_header(header)) == INVALID_REQUEST_HEADER)
+        type=http_request_header;
+    else if((general_header=str_to_http_general_header(header)) == INVALID_GENERAL_HEADER)
+        type=http_general_header;
+    else if((entity_header=str_to_http_entity_header(header)) == INVALID_ENTITY_HEADER)
+        type=http_entity_header;
+    else return 1;
+
+    if(hn == NULL)
+        tmp=hr->headers->first;
+    else
+        tmp=hn;
+
+
+    while (tmp != NULL)
+    {
+
+        if(tmp->type == type)
+        {
+            hn=tmp;
+            return 0;
+        }
+    }
+    return 1;
+}
+int find_header_by_type(http_header_node_t* hn, const http_request_t* hr, int header_type, int header)
+{
+    http_header_node_t* tmp=NULL;
+    if(hn == NULL)
+        tmp=hr->headers->first;
+    else
+        tmp=hn;
+    while (tmp != NULL)
+    {
+
+        if(tmp->type == header_type)
+        {
+            if(tmp->http_header == header)
+            {
+                hn=tmp;
+                return 0;
+            }
+        }
+    }
+    return 1;
+}

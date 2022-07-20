@@ -14,6 +14,7 @@ job_t* create_job()
         return NULL;
     if((j->response = init_http_response()) == NULL)
         return NULL;
+    j->socket=0;
     j->fd=0;
     return j;
 
@@ -28,6 +29,7 @@ void destroy_job(job_t* j)
     }
     delete_http_request(j->req);
     delete_http_response(j->response);
+    close(j->socket);
     close(j->fd);
     free(j);
 

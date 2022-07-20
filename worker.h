@@ -35,7 +35,7 @@ void run_server(void) __attribute__ ((noreturn)) ;
 
 int create_job_to_process(int);
 void* process_jobs(void*);
-void *send_data_to_client(void*);
+void* send_data_to_client(void*);
 
-int run_threads(int nprocessing_threads, int nsender_threads);
+int run_threads(int nprocessing_threads);
 #endif //IOWORKER_H

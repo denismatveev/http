@@ -10,8 +10,9 @@ typedef struct __job
 {
   http_request_t *req;
   http_response_t *response;
-  int fd;// client socket
+  int socket;// client socket
   char raw_data[INITIAL_DATA_SIZE];
+  int fd; // file descriptor to be sent
 } job;
 
 typedef job job_t;

@@ -1,6 +1,8 @@
 #include<string.h>
 #include<stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include"config.h"
@@ -832,11 +834,19 @@ int load_cfg(config_t* cfg)
         if(dir[len_dir-1] != '/')
             fullindexfile[len_dir]='/';
         strncat(fullindexfile, file, 127);
-        if((fd=open(fullindexfile,O_RDONLY)) == -1)
+        if((fd=open(fullindexfile, __O_PATH | O_NOFOLLOW)) == -1)
         {
             WriteLogPError(fullindexfile);
             return -1;
         }
+        if((checkRegularFile(fd)) == -1)
+        {
+            WriteLog("File %s is not a regular file, specify a file", fullindexfile);
+            close (fd);
+            return -1;
+
+        }
+        add_elem(cfg->default_vhost->Set, "indexfilepath", fullindexfile);
         close(fd);
     }
 
@@ -874,11 +884,19 @@ int load_cfg(config_t* cfg)
         if(dir[len_dir-1] != '/')
             fullindexfile[len_dir]='/';
         strncat(fullindexfile, file, 127);
-        if((fd=open(fullindexfile,O_RDONLY)) == -1)
+        if((fd=open(fullindexfile, __O_PATH | O_NOFOLLOW)) == -1)
         {
             WriteLogPError(fullindexfile);
             return -1;
         }
+        if((checkRegularFile(fd)) == -1)
+        {
+            WriteLog("File %s is not a regular file, specify a file", fullindexfile);
+            close (fd);
+            return -1;
+
+        }
+        add_elem(qe->node->section->Set, "indexfilepath", fullindexfile);
         close(fd);
     }
 

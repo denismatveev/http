@@ -11,8 +11,8 @@
 // shared variables among threads
 pthread_cond_t output_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t input_cond = PTHREAD_COND_INITIALIZER;
-//jobs_queue_t* input_queue;
-//jobs_queue_t* output_queue;
+jobs_queue_t* input_queue;
+jobs_queue_t* output_queue;
 
 int create_listener()
 {
@@ -85,7 +85,7 @@ void run_server()
     output_queue = init_jobs_queue("output");
 
     nworkers=atoi(get_value(cfg->general->Set, general_reserved_names[2]));
-    run_threads(nworkers,nworkers);
+    run_threads(nworkers);
     ev.data.fd = sockfd;
 
     epollfd = epoll_create1(0);
@@ -101,7 +101,7 @@ void run_server()
         WriteLogPError("epoll_ctl");
         exit(EXIT_FAILURE);
     }
-    //TODO the cycle below to be placed into dedicated thread
+    //TODO the loop below to be placed into dedicated thread
     for (;;)
     {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
@@ -162,9 +162,9 @@ int create_job_to_process(int client_sock)
     if((job = create_job()) == NULL)
         return -1;
 
-    job->raw_data->client_socket=client_sock; //  copy fd to raw data structure
-    bytes_read=read(job->raw_data->client_socket, job->raw_data->initial_data, INITIAL_DATA_SIZE); // reading data from the socket to structure
-    job->raw_data->initial_data[bytes_read+1] = 0;//adds 0 to the end of data
+    job->socket=client_sock; //  copy fd to raw data structure
+    bytes_read=read(client_sock, job->raw_data, INITIAL_DATA_SIZE); // reading data from the socket to structure
+    job->raw_data[bytes_read+1] = 0;//adds 0 to the end of data
 
     if(push_job(input_queue, job))
     {
@@ -181,13 +181,18 @@ void* process_jobs(void* args)
     //  struct sending_thread_args *targs = args;// you can pass args via this struct
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    job_t *job=NULL;
+    job_t *job;
+    http_header_node_t* header_node;
+    section_t cfg_section;
     int err;
     int ret;
-    int fd; // opened file descriptor to be sent
-    struct stat sb;
+    char date[DATE_HEADER_MAX_LENGTH];
+    char * indexfile;
+
     while(1)
     {
+        header_node = NULL;
+        job = NULL;
         pthread_mutex_lock(&mutex);
 
         while(input_queue->size == 0)
@@ -203,79 +208,116 @@ void* process_jobs(void* args)
         // parsing raw client data and create a http_request
         ret=process_http_data(job->req, job->raw_data);
         // depending on what data are in http_request we are making a response
-        // TODO implement HEAD request
-        if(ret < 0 )
-        {
-            // bad request
-            create_400_response(job->response, job->req);
-            fd=open("error_pages/400.html",O_RDONLY );
-            job->response->message_body=fd;
-            job->response->header.content_length_num=get_file_size(fd);
-            convert_Content_Length(&job->response->header);
-            goto PUSH;
-        }
-        // finding a file and creating a response
-        if(job->req->method == GET)
-        {
-            fd = open(job->req->params, O_RDONLY);
-            if((checkRegularFile(fd)) != 0)
-            {
-                create_404_response(job->response, job->req);
-                fd=open("error_pages/404.html",O_RDONLY );
-                job->response->message_body=fd;
-                job->response->header.content_length_num=get_file_size(fd);
-                convert_Content_Length(&job->response->header);
-                goto PUSH;
-            }
 
-            if(fd > 0)
+        if(ret == 0)
+        {
+            if(job->req->parsing_result == 0)
             {
-                //everything is OK
-                create_200_response(job->response, job->req);
-                job->response->message_body=fd;
-                job->response->header.content_length_num=get_file_size(fd);
-                get_file_MIME_type_in_str(job->response->header.content_type, 256, job->req->params);
-                convert_Content_Length(&job->response->header);
-                goto PUSH;
-            }
-            else if(fd < 0)
-            {
-                //something went wrong
-                err = errno;
-                if(err == EACCES || err == ENOENT)
+                switch(job->req->req_line.method)
                 {
-                    //no such file
-                    create_404_response(job->response, job->req);
-                    fd=open("error_pages/404.html",O_RDONLY );
-                    job->response->message_body=fd;
-                    job->response->header.content_length_num=get_file_size(fd);
-                    convert_Content_Length(&job->response->header);
+                case HTTP_METHOD_HEAD:
+
+                    // looking for Host header in a request and then search if there is such host in cfg, otherwise use default host
+                    if((find_header_by_type(header_node, job->req, http_request_header, REQUEST_HEADER_HOST)) == 0)
+                        cfg_section=search_for_host_in_cfg(cfg, header_node->http_header_value);
+                    else
+                        cfg_section=cfg->default_vhost;
+
+                    get_current_date_str(date);
+
+                    if(strncmp(job->req->req_line.request_URI, "/", 1))
+                    {
+                        indexfile=get_value(cfg_section->Set,"indexfilepath");
+                        job->fd=open(indexfile, O_RDONLY);// file descriptor will be closed in destroy_job()
+                        set_reason_code(job->response, 200);
+                        add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, NO_MSG_BODY);
+                    }
+                    else
+                    {
+                        if((job->fd=open(job->req->req_line.request_URI, O_RDONLY | O_NOFOLLOW)) > 0)
+                        {
+                            if((checkRegularFile(job->fd)) == 0)
+                            {
+                                set_reason_code(job->response, 200);
+                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, NO_MSG_BODY);
+                            }
+                            else
+                                create_error_message(job->response, REASON_BAD_REQUEST, NO_MSG_BODY);
+                        }
+                        else
+                            create_error_message(job->response, REASON_FORBIDDEN, NO_MSG_BODY);
+                    }
+                    add_header_to_response(job->response, "Date:", date);
+                    add_header_to_response(job->response, "Server:", SERVERNAME);
+
                     goto PUSH;
 
-                }
-                else if(err == ENFILE || err == ELOOP)
-                {
-                    //specific errors
-                    create_500_response(job->response, job->req);
-                    fd=open("error_pages/500.html",O_RDONLY );
-                    job->response->message_body=fd;
-                    job->response->header.content_length_num=get_file_size(fd);
-                    convert_Content_Length(&job->response->header);
+                case HTTP_METHOD_GET:
+
+                    if((find_header_by_type(header_node, job->req, http_request_header, REQUEST_HEADER_HOST)) == 0)
+                        cfg_section=search_for_host_in_cfg(cfg, header_node->http_header_value);
+                    else
+                        cfg_section=cfg->default_vhost;
+
+                    get_current_date_str(date);
+
+                    if(strncmp(job->req->req_line.request_URI, "/", 1))
+                    {
+                        indexfile=get_value(cfg_section->Set,"indexfilepath");
+                        job->fd=open(indexfile, O_RDONLY);// file descriptor will be closed in destroy_job()
+                        set_reason_code(job->response, 200);
+                        add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, SET_MSG_BODY);
+                    }
+                    else
+                    {
+                        if((job->fd=open(job->req->req_line.request_URI, O_RDONLY | O_NOFOLLOW)) > 0)
+                        {
+                            if((checkRegularFile(job->fd)) == 0)
+                            {
+                                set_reason_code(job->response, 200);
+                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, SET_MSG_BODY);
+                            }
+                            else
+                                create_error_message(job->response, REASON_BAD_REQUEST, SET_MSG_BODY);
+                        }
+                        else
+                            create_error_message(job->response, REASON_FORBIDDEN, SET_MSG_BODY);
+                    }
+                    add_header_to_response(job->response, "Date:", date);
+                    add_header_to_response(job->response, "Server:", SERVERNAME);
+
+
                     goto PUSH;
+
+
+
+                default:
+                    get_current_date_str(date);
+                    add_header_to_response(job->response, "Server:", SERVERNAME);
+                    create_error_message(job->response, REASON_NOT_IMPLEMENTED, SET_MSG_BODY);
+                    goto PUSH;
+
+
+
+
                 }
             }
-        }
-        else
-        {
-            // not implemented
-            create_501_response(job->response, job->req);
-            fd=open("error_pages/501.html",O_RDONLY );
-            job->response->message_body=fd;
-            job->response->header.content_length_num=get_file_size(fd);
-            convert_Content_Length(&job->response->header);
-            goto PUSH;
-        }
+            else if(job->req->parsing_result == 1)
+            {
+                get_current_date_str(date);
+                add_header_to_response(job->response, "Server:", SERVERNAME);
+                create_error_message(job->response, REASON_NOT_IMPLEMENTED, SET_MSG_BODY);
+                goto PUSH;
 
+
+            }
+        }
+        if(ret != 0 )
+        {
+            WriteLog("Something went wrong while processing http request, check logs");
+            return NULL;
+
+        }
 
 PUSH:
         // pushing the job into output queue
@@ -298,13 +340,11 @@ PUSH:
 void* send_data_to_client(void* args)
 {
 
-    //struct sending_thread_args *targs = args;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     job_t* job;
-    char serialized_headers[512]={0};
-    size_t headers_len;
+    char serialized_data[10000];// this is max len of the longest header name plus HTTP_HEADER_VALUE_MAX_LEN multiplied by max number of headers(64)
+    size_t headers_len=0;
     ssize_t sent_bytes=0;
-
 
     while(1)
     {
@@ -317,32 +357,33 @@ void* send_data_to_client(void* args)
 #endif
         if((pop_job(output_queue, &job)))
             continue;
-
-        // create serialized http header
-        headers_len=create_serialized_http_header(serialized_headers, &job->response->header, 512);
-        // sending an answer
-        // At first we need to send headers and then file
-        sent_bytes = write(job->raw_data->client_socket, serialized_headers, headers_len);
-        sent_bytes += sendfile(job->raw_data->client_socket, job->response->message_body, NULL, (size_t)job->response->header.content_length_num);
+        memset(serialized_data,0, 10000);// make sense to move these two functions to process_jobs() and parallelize the work, and serialized_data put to job struct
+        process_http_response(serialized_data,job->response, 10000);
+        // sending a response
+        // At first we need to send headers
+        sent_bytes = write(job->socket, serialized_data, headers_len);
+        // then we need to send either file or buffer
+        if(job->fd != 0)
+            sent_bytes += sendfile(job->socket,job->fd,NULL, job->response->message_body_size);
+        else
+            sent_bytes += write(job->socket, job->response->message_body, job->response->message_body_size);
 
         // deleting all allocated resources
-        close(job->response->message_body);
-        // close client socket
-        close(job->raw_data->client_socket);
+
         destroy_job(job);
 
         pthread_mutex_unlock(&mutex);
     }
 }
 
-//TODO create function to close all allocated resources(queues, listening sockets) if signal came(i.e. to reload config)
+//TODO create function to close all allocated resources(queues, listening sockets) or save somewhere them if signal came(i.e. to reload config)
 
 
-int run_threads(int nprocessing, int nsenders)
+int run_threads(int nprocessing)
 {
     int rc;
     pthread_t *workers;
-    pthread_t *senders;
+    pthread_t *sender=NULL;
 
     pthread_attr_t worker_attr;
     pthread_attr_t sender_attr;
@@ -351,13 +392,16 @@ int run_threads(int nprocessing, int nsenders)
     if((workers=(pthread_t*)calloc((size_t)nprocessing,sizeof(pthread_t))) == NULL)
         return -1;
 
-    if((senders=(pthread_t*)calloc((size_t)nsenders,sizeof(pthread_t))) == NULL)
-        return -1;
-
     if((rc=pthread_attr_init(&worker_attr)))
+    {
+        free(workers);
         return rc;
+    }
     if((rc=pthread_attr_setdetachstate(&worker_attr, PTHREAD_CREATE_DETACHED)))
+    {
+        free(workers);
         return rc;
+    }
     for(int i=0; i < nprocessing; ++i)
     {
         if((rc=pthread_create(workers + i, &worker_attr, process_jobs, NULL)))
@@ -375,16 +419,13 @@ int run_threads(int nprocessing, int nsenders)
     if((rc=pthread_attr_setdetachstate(&sender_attr, PTHREAD_CREATE_DETACHED)))
         return rc;
 
-    for(int i=0; i < nprocessing; ++i)
+    if((rc=pthread_create(sender, &sender_attr, send_data_to_client, NULL)))
     {
-        if((rc=pthread_create(senders + i, &sender_attr, send_data_to_client, NULL)))
-        {
-            WriteLogPError("creating sending thread");
-            pthread_attr_destroy(&sender_attr);
-            free(senders);
+        WriteLogPError("creating sending thread");
+        pthread_attr_destroy(&sender_attr);
+        free(sender);
 
-            return rc;
-        }
+        return rc;
     }
     return 0;
 }

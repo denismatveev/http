@@ -34,9 +34,10 @@
 #define DATE_HEADER_MAX_LENGTH 64
 #define HEADER_VALUE_MAX_LENGTH 512
 #define STATUS_LINE_MAX_LENGTH (REASON_CODE_NAME_MAX_LENGTH + HTTP_PROTOCOL_VERSION_MAX_LENGTH + 3)
-#define MAX_BODY_SIZE 1024*1024 // default is 1Mb
-#define SET_MESSAGE_BODY 0x0001
-#define NO_MESSAGE_BODY 0x0000
+#define MAX_MSG_BODY_SIZE 1024*1024 // default is 1Mb
+#define SET_MSG_BODY 0x0001
+#define NO_MSG_BODY 0x0000
+#define MSG_BODY_FILE 0x0002
 
 #define CRLF "\r\n"
 #define SP " "
@@ -60,6 +61,7 @@ typedef enum http_protocol_version
 #define HTTP_REASON_CODE(XX)                             \
     XX(200,  OK       ,        200 OK            )       \
     XX(400,  BAD_REQUEST,      400 Bad Request)          \
+    XX(403,  FORBIDDEN,        400 Forbidden)            \
     XX(404,  NOT_FOUND,        404 Not Found)            \
     XX(413,  ENTITY_TOO_LARGE, 413 Entity Too Large)     \
     XX(500,  INTERNAL_ERROR,   500 Internal Error)       \
@@ -236,7 +238,7 @@ typedef struct __http_request
     http_request_line_t req_line;
     http_headers_list_t* headers;
     unsigned char parsing_result;
-    char* message_body[MAX_BODY_SIZE];//TODO find out in https://tools.ietf.org/html/rfc2616 size of message_body. message_body should not always be sent in request if that request does not imply this
+    char* message_body[MAX_MSG_BODY_SIZE];//TODO find out in https://tools.ietf.org/html/rfc2616 size of message_body. message_body should not always be sent in request if that request does not imply this
     //(GET should not be sent message_body)
 } http_request_t;
 
@@ -273,7 +275,9 @@ typedef struct __http_response
 {
     http_status_line_t sl;
     http_headers_list_t* headers;
-    char message_body[MAX_BODY_SIZE];
+    char message_body[MAX_MSG_BODY_SIZE];
+    long message_body_size;
+  //  char* error;// pointer to string of error body in case the response is an http error
 
 }http_response_t;
 
@@ -360,9 +364,10 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
 
 int header_name_to_str_value_by_type(const http_header_node_t*, char [], char []);
 int validation_content_type(const char* ct);
-int add_file_as_message_body(http_response_t * response, int fd, const char* filename, char flags);
-int add_message_body(http_response_t * response, const int fd, char flags);
+int add_file_as_message_body(http_response_t * response, const int fd, const char* filename, char flags);
+int read_message_body_from_socket(http_response_t * response, const int socket, char flags);
 int add_error_message(http_response_t* response, char* error, char flags);
 int create_error_message(http_response_t* response, int error, char flags);
-
+int find_header_by_name(http_header_node_t*hn, const http_request_t *hr, char * header);
+int find_header_by_type(http_header_node_t* hn, const http_request_t* hr, int header_type, int header);
 #endif /*_HTTP_H*/

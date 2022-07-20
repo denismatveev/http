@@ -13,29 +13,37 @@ int main(int argc, char** argv)
     pid_t pid;
     int c;
     sigset_t set;
-//TODO create help_message
-//    char* help_message="";
+    //TODO create help_message
+    char* help_message="Usage: %s -c <config> - start web server\n"
+                       "             -h\t\t - print help message and exit\n";
 
 
-    while ((c = getopt (argc, argv, ":c:")) != -1)
+    while ((c = getopt (argc, argv, ":hc:")) != -1)
     {
         switch (c)
         {
         case 'c':
             cfgFile = optarg;
             break;
+        case 'h':
+            fprintf(stderr,help_message,argv[0]);
+            exit(EXIT_SUCCESS);
         case '?':
             fprintf(stderr, "Unknown option -%c\n", optopt);
+            fprintf(stderr,help_message,argv[0]);
             exit(EXIT_FAILURE);
         case ':':
             fprintf(stderr, "Option -%c requires an argument\n", optopt);
+            fprintf(stderr,help_message,argv[0]);
             exit(EXIT_FAILURE);
         default:
+            fprintf(stderr,help_message,argv[0]);
             exit(EXIT_FAILURE);
         }
     }
     if(cfgFile == NULL)
     {
+        fprintf(stderr,help_message,argv[0]);
         WriteLogPError("No cfg file provided");
         exit(EXIT_FAILURE);
 
@@ -45,7 +53,7 @@ int main(int argc, char** argv)
     {
         printf("Something went wrong. Check logs\n");
         exit(1);
-     }
+    }
     if((check_cfg(cfg) < 0))
     {
         printf("Wrong config. Check logs\n");
@@ -92,5 +100,5 @@ int main(int argc, char** argv)
     //TODO signal handler(SIGPIPE, SIGUSR1 etc)
     run_server();
 
-//    destroy_config(cfg);
+    //    destroy_config(cfg);
 }

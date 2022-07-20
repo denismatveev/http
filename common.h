@@ -17,7 +17,12 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <ctype.h>
-
+typedef struct
+{
+    size_t len, max;
+    char *str;
+} string_t;
+int stringcat(string_t str1, string_t str2);
 void WriteLog(const char *format, ...);
 void WriteLogPError(const char*);
 int setnonblocking (int);
