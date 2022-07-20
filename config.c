@@ -59,16 +59,16 @@ static unsigned int str_number=0;
 
 char *hosts_reserved_names[] =
 {
-#define XX(num, name, hosts_reserved_names) #hosts_reserved_names,
+    #define XX(num, name, hosts_reserved_names) #hosts_reserved_names,
     HOSTS_RESERVED_NAMES(XX)
-#undef XX
+    #undef XX
     NULL
 };
 char *general_reserved_names[] =
 {
-#define XX(num, name, general_reserved_names) #general_reserved_names,
+    #define XX(num, name, general_reserved_names) #general_reserved_names,
     GENERAL_RESERVED_NAMES(XX)
-#undef XX
+    #undef XX
     NULL
 };
 // TODO replace explicit defining array of chars by Macro X and put all definitions into h file
@@ -145,7 +145,6 @@ section_t init_section(section_type_t t)
         return NULL;
     s->type = t;
     s->Set=arr;
-    s->indexfile_fd=0;
 
     return s;
 
@@ -155,7 +154,6 @@ void destroy_section(section_t t)
     if(t == NULL)
         return;
     destroy_assoc_array(t->Set);
-    close(t->indexfile_fd);
     free(t);
 
     return;
@@ -818,6 +816,7 @@ int load_cfg(config_t* cfg)
     char* dir;
     char* file;
     char fullindexfile[256]={0};
+    int fd;
     size_t len_dir;
     rb_tree_t* t;
     q_elem_t qe = NULL;
@@ -833,11 +832,12 @@ int load_cfg(config_t* cfg)
         if(dir[len_dir-1] != '/')
             fullindexfile[len_dir]='/';
         strncat(fullindexfile, file, 127);
-        if((cfg->default_vhost->indexfile_fd=open(fullindexfile,O_RDONLY)) == -1)
+        if((fd=open(fullindexfile,O_RDONLY)) == -1)
         {
             WriteLogPError(fullindexfile);
             return -1;
         }
+        close(fd);
     }
 
     t=cfg->hosts;
@@ -874,12 +874,14 @@ int load_cfg(config_t* cfg)
         if(dir[len_dir-1] != '/')
             fullindexfile[len_dir]='/';
         strncat(fullindexfile, file, 127);
-        if((tmp->node->section->indexfile_fd=open(fullindexfile,O_RDONLY)) == -1)
+        if((fd=open(fullindexfile,O_RDONLY)) == -1)
         {
             WriteLogPError(fullindexfile);
             return -1;
         }
+        close(fd);
     }
+
 
     destroy_queue(q);
 

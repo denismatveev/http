@@ -69,7 +69,6 @@ typedef struct __section
 {
     section_type_t type;
     assoc_t* Set;
-    int indexfile_fd;
 }__section_t;
 
 typedef __section_t* section_t;
