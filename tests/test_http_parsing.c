@@ -61,7 +61,7 @@ int main(int argc, char** argv)
     add_header_to_response(response, "Date:", date);
     add_header_to_response(response, "Server:", "Maya");
     fd=open("index.html", O_RDONLY);
-    add_file_as_message_body(response, fd, "index.html", SET_MESSAGE_BODY);
+    add_file_as_message_body(response, fd, "index.html", SET_MSG_BODY);
 //    add_header_to_response(response,"Content-Type:", "text/html");
 //    add_header_to_response(response,"Content-Length:", "12800");
 
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 
     add_header_to_response(response1, "Date:", date);
     add_header_to_response(response1, "Server:", "Maya");
-    create_error_message(response1, 501, NO_MESSAGE_BODY);
+    create_error_message(response1, 501, NO_MSG_BODY);
     process_http_response(to_be_sent,response1,512);
     printf("A response to be sent:\n");
     printf("%s\n", to_be_sent);

@@ -21,7 +21,7 @@ void* run_threads(void* args)
       for(int k = 0; k < QUEUES; k++,jn++)
         {
           j=create_job();// jobs cannot be used in different queues, because closing queues causes jobs deleting
-          strncpy(j->raw_data->initial_data, str, 100);
+          strncpy(j->raw_data, str, 100);
           push_job(q_array[k], j);
           pop_job(q_array[k],&j);
           destroy_job(j);

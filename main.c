@@ -13,7 +13,6 @@ int main(int argc, char** argv)
     pid_t pid;
     int c;
     sigset_t set;
-    //TODO create help_message
     char* help_message="Usage: %s -c <config> - start web server\n"
                        "             -h\t\t - print help message and exit\n";
 
@@ -44,7 +43,7 @@ int main(int argc, char** argv)
     if(cfgFile == NULL)
     {
         fprintf(stderr,help_message,argv[0]);
-        WriteLogPError("No cfg file provided");
+        WriteLog("No cfg file provided");
         exit(EXIT_FAILURE);
 
     }
@@ -70,9 +69,9 @@ int main(int argc, char** argv)
     if(pid)
     {
         WriteLog("Started OK, My PID = %i", pid);
-        exit(EXIT_SUCCESS);
+        //exit(EXIT_SUCCESS);
     }
-    /* the following code is executing in child process */
+    /* the following code is executed in a child process */
     if((setsid()) < 0)
     {
         WriteLog("An Error occured. Stop");

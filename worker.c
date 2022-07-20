@@ -383,7 +383,7 @@ int run_threads(int nprocessing)
 {
     int rc;
     pthread_t *workers;
-    pthread_t *sender=NULL;
+    pthread_t sender;
 
     pthread_attr_t worker_attr;
     pthread_attr_t sender_attr;
@@ -419,11 +419,10 @@ int run_threads(int nprocessing)
     if((rc=pthread_attr_setdetachstate(&sender_attr, PTHREAD_CREATE_DETACHED)))
         return rc;
 
-    if((rc=pthread_create(sender, &sender_attr, send_data_to_client, NULL)))
+    if((rc=pthread_create(&sender, &sender_attr, send_data_to_client, NULL)))
     {
         WriteLogPError("creating sending thread");
         pthread_attr_destroy(&sender_attr);
-        free(sender);
 
         return rc;
     }
