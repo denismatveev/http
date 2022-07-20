@@ -11,13 +11,14 @@ int main(int argc, char** argv)
 {
 
     pid_t pid;
-    int c;
+    int c,d=0;
     sigset_t set;
     char* help_message="Usage: %s -c <config> - start web server\n"
+                       "             -d\t\t - run as a daemon\n"
                        "             -h\t\t - print help message and exit\n";
 
 
-    while ((c = getopt (argc, argv, ":hc:")) != -1)
+    while ((c = getopt (argc, argv, ":dhc:")) != -1)
     {
         switch (c)
         {
@@ -27,6 +28,9 @@ int main(int argc, char** argv)
         case 'h':
             fprintf(stderr,help_message,argv[0]);
             exit(EXIT_SUCCESS);
+        case 'd':
+            d=1;
+            break;
         case '?':
             fprintf(stderr, "Unknown option -%c\n", optopt);
             fprintf(stderr,help_message,argv[0]);
@@ -58,44 +62,45 @@ int main(int argc, char** argv)
         printf("Wrong config. Check logs\n");
         exit(1);
     }
-
-    pid=fork();//child process
-
-    if(pid == -1)
+    if (d == 1)
     {
-        WriteLogPError("Error starting daemon");
-        exit(EXIT_FAILURE);
+        pid=fork();//child process
+
+        if(pid == -1)
+        {
+            WriteLogPError("Error starting daemon");
+            exit(EXIT_FAILURE);
+        }
+        if(pid)
+        {
+            WriteLog("Started OK, My PID = %i", pid);
+            exit(EXIT_SUCCESS);
+        }
+        /* the following code is executed in a child process */
+        if((setsid()) < 0)
+        {
+            WriteLog("An Error occured. Stop");
+            exit(EXIT_FAILURE);
+        }
+        umask(0);
+
+        if((chdir("/")) < 0)
+        {
+            WriteLog("Can't change directory");
+            exit(EXIT_FAILURE);
+        }
+
+        fclose(stderr);
+        fclose(stdin);
+        fclose(stdout);
+
+
+        sigemptyset(&set);
+        // signals
+        sigaddset(&set, SIGPIPE );
+        //sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+        sigprocmask(SIG_BLOCK,&set, NULL);
     }
-    if(pid)
-    {
-        WriteLog("Started OK, My PID = %i", pid);
-        //exit(EXIT_SUCCESS);
-    }
-    /* the following code is executed in a child process */
-    if((setsid()) < 0)
-    {
-        WriteLog("An Error occured. Stop");
-        exit(EXIT_FAILURE);
-    }
-    umask(0);
-
-    if((chdir("/")) < 0)
-    {
-        WriteLog("Can't change directory");
-        exit(EXIT_FAILURE);
-    }
-
-    fclose(stderr);
-    fclose(stdin);
-    fclose(stdout);
-
-
-    sigemptyset(&set);
-    // signals
-    sigaddset(&set, SIGPIPE );
-    //sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
-    sigprocmask(SIG_BLOCK,&set, NULL);
-
     //TODO signal handler(SIGPIPE, SIGUSR1 etc)
     run_server();
 
