@@ -70,11 +70,11 @@ static char* http_method_str[] =
 
 // errors
 
-static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>";
-static char* not_found_error = "<html><body><head><title>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>";
-static char* internal_error = "<html><body><head><title>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>";
-static char* not_implemented_error = "<html><body><head><title>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>";
-static char* forbidden_error = "<html><body><head><title>403 Forbidden</title></head><center><h1> 403 Forbidden <h1></center></body></html>";
+static char* bad_request_error = "<html><body><head><title>400 Bad Request</title></head><center><h1> 400 Bad Request <h1></center></body></html>\n";
+static char* not_found_error = "<html><body><head><title>404 Not Found</title></head><center><h1> 404 Not Found <h1></center></body></html>\n";
+static char* internal_error = "<html><body><head><title>500 Internal Error</title></head><center><h1> 500 Internal Error <h1></center></body></html>\n";
+static char* not_implemented_error = "<html><body><head><title>501 Not Implemented</title></head><center><h1> 501 Not Implemented <h1></center></body></html>\n";
+static char* forbidden_error = "<html><body><head><title>403 Forbidden</title></head><center><h1> 403 Forbidden <h1></center></body></html>\n";
 // According to RFC2616 a method must be case sensitive
 // Implied the passing string is null terminated, but doesn't verified if there is '\0' at the end position
 // A caller must take care about null terminating
@@ -501,19 +501,22 @@ int reason_code_to_str(char *str, http_reason_code_t rt, unsigned char str_len)
         strncpy(str,reason_code_name[0], str_len);
         break;
     case REASON_BAD_REQUEST:
-        strncpy(str, reason_code_name[0], str_len);
+        strncpy(str, reason_code_name[1], str_len);
         break;
     case REASON_NOT_FOUND:
-        strncpy(str,reason_code_name[1], str_len);
+        strncpy(str,reason_code_name[2], str_len);
         break;
     case REASON_ENTITY_TOO_LARGE:
-        strncpy(str,reason_code_name[2], str_len);
+        strncpy(str,reason_code_name[3], str_len);
         break;
     case REASON_INTERNAL_ERROR:
         strncpy(str,reason_code_name[4], str_len);
         break;
     case REASON_NOT_IMPLEMENTED:
         strncpy(str,reason_code_name[5], str_len);
+        break;
+    case REASON_FORBIDDEN:
+        strncpy(str,reason_code_name[6], str_len);
         break;
     }
     return 0;
@@ -1544,6 +1547,7 @@ int http_general_header_to_str(http_general_header_t h, char* str, unsigned char
     default:
         return 1;
     }
+    strncat(str,":", 1);
     return 0;
 }
 
@@ -1614,6 +1618,7 @@ int http_request_header_to_str(http_request_header_t h, char* str, unsigned char
         return 1;
     }
 
+    strncat(str, ":", 1);
     return 0;
 }
 
@@ -1658,6 +1663,7 @@ int http_entity_header_to_str(http_entity_header_t h, char* str, unsigned char s
 
     }
 
+    strncat(str, ":", 1);
     return 0;
 }
 int http_response_header_to_str(http_response_header_t h, char* str, unsigned char str_len)
@@ -1696,6 +1702,7 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
     default:
         return 1;
     }
+    strncat(str, ":", 1);
     return 0;
 }
 http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[])
@@ -1758,7 +1765,7 @@ int validation_content_type(const char *ct)
     char buff[HTTP_HEADER_VALUE_MAX_LEN];
     memset(buff, 0, HTTP_HEADER_VALUE_MAX_LEN);
     strncat(buff, entity_header_str[ENTITY_HEADER_CONTENT_TYPE], HTTP_HEADER_VALUE_MAX_LEN);
-    strncat(buff," ", 64);
+    strncat(buff,": ", 64);
     strncat(buff,ct, 64);
     for (int i = 0; entity_header_content_type_str[i] != NULL; ++i)
         if (!(strncmp(buff, entity_header_content_type_str[i], HTTP_HEADER_VALUE_MAX_LEN)))
@@ -1969,6 +1976,7 @@ int process_http_data(http_request_t *req, char *rd)
 
         count ++;
     }
+    req->parsing_result=0;
     create_http_request(req,header_list,req_line);
     // TODO return a pointer to message_body if request method allows this(i.e.POST)
     return 0;
@@ -1980,7 +1988,7 @@ int parse_http_header_line(char* header_line, char* header, char *value)
     char *saveptr=NULL;
     char *tok;
     // Header
-    if((tok=strtok_r(header_line, "SP:", &saveptr)) == NULL)
+    if((tok=strtok_r(header_line, " :", &saveptr)) == NULL)
         return 1;
 
     strncpy(header, tok, HTTP_HEADER_NAME_MAX_LEN);
@@ -2032,6 +2040,7 @@ http_response_t* init_http_response(void)
         return NULL;
 
     response->headers=NULL;
+    response->error_message=NULL;
     response->sl.rc=0;
     response->sl.hv=PROTO_HTTP11;// server implemented to serve HTTP/1.1
 
@@ -2152,6 +2161,8 @@ int set_reason_code(http_response_t* r, int code)
     case REASON_NOT_IMPLEMENTED:
         break;
     case REASON_NOT_FOUND:
+        break;
+    case REASON_FORBIDDEN:
         break;
     default:
         return -1;
@@ -2301,7 +2312,7 @@ int add_error_message(http_response_t* response, char* error, char flags)
     if(response == NULL)
         return -1;
 
-    size=sizeof(error);
+    size=strlen(error);
     long_to_str(len, size);
 
 
@@ -2309,11 +2320,11 @@ int add_error_message(http_response_t* response, char* error, char flags)
         return 1;
     if(flags & SET_MSG_BODY)
     {
-        long_to_str(len, size);
+      //  long_to_str(len, size);
         response->message_body_size=size;
         if((add_header_to_response(response, entity_header_str[ENTITY_HEADER_CONTENT_LENGTH], len)) !=0 )
             return 1;
-        response->message_body[0]=*error;
+        response->error_message=error;
     }
     return 0;
     // then use write(), send() or sendto() etc syscalls
@@ -2339,8 +2350,8 @@ int create_error_message(http_response_t* response, int error, char flags)
         set_reason_code(response, 501);
         add_error_message(response, not_implemented_error, flags);
         break;
-    case 503:
-        set_reason_code(response, 503);
+    case 500:
+        set_reason_code(response, 500);
         add_error_message(response, internal_error, flags);
         break;
     default:
@@ -2372,11 +2383,11 @@ int find_header_by_name(http_header_node_t* hn, const http_request_t* hr, char *
     else return 1;
 
     if(hn == NULL)
-        tmp=hr->headers->first;
+        if(hr->headers != NULL)
+            tmp=hr->headers->first;
+        else return 1;
     else
         tmp=hn;
-
-
     while (tmp != NULL)
     {
 
@@ -2388,24 +2399,46 @@ int find_header_by_name(http_header_node_t* hn, const http_request_t* hr, char *
     }
     return 1;
 }
-int find_header_by_type(http_header_node_t* hn, const http_request_t* hr, int header_type, int header)
+http_header_node_t* find_header_by_type(http_header_node_t** hn, const http_request_t* hr, int header_type, int header)
 {
     http_header_node_t* tmp=NULL;
     if(hn == NULL)
-        tmp=hr->headers->first;
+        if(hr->headers != NULL)
+            tmp=hr->headers->first;
+        else return NULL;
     else
-        tmp=hn;
+        tmp=*hn;
     while (tmp != NULL)
     {
 
         if(tmp->type == header_type)
-        {
             if(tmp->http_header == header)
-            {
-                hn=tmp;
-                return 0;
-            }
-        }
+                return tmp;
     }
-    return 1;
+    return NULL;
+}
+void print_request(http_request_t* r)
+{
+
+    char proto[HTTP_PROTOCOL_VERSION_MAX_LENGTH],method[16];
+    http_header_node_t* node;
+    char header_name[HTTP_HEADER_NAME_MAX_LEN], header_value[HTTP_HEADER_VALUE_MAX_LEN];
+    printf("Request Line:\n");
+    http_method_to_str(r->req_line.method,method, 16);
+    printf("Method: %s\n",method);
+    printf("URI: %s\n",r->req_line.request_URI);
+    http_ptorocol_code_to_str(proto, r->req_line.http_version,HTTP_PROTOCOL_VERSION_MAX_LENGTH);
+    printf("Protocol: %s\n",proto);
+    printf("Headers:\n");
+
+    node=r->headers->first;
+
+    while(node != NULL)
+    {
+        header_name_to_str_value_by_type(node, header_name, header_value);
+        printf("%s %s\n",header_name,header_value);
+        node=node->next;
+    }
+    printf("\n");
+
 }

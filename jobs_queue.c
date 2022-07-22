@@ -15,7 +15,7 @@ job_t* create_job()
     if((j->response = init_http_response()) == NULL)
         return NULL;
     j->socket=0;
-    j->fd=0;
+    j->fd=-1;
     return j;
 
 }
@@ -30,8 +30,12 @@ void destroy_job(job_t* j)
     delete_http_request(j->req);
     delete_http_response(j->response);
     close(j->socket);
-    close(j->fd);
+    if(j->fd > 0)
+        close(j->fd);
     free(j);
+#ifdef DEBUG
+    WriteLog("Job %p destroyed", j);
+#endif
 
 }
 
@@ -93,7 +97,7 @@ int push_job(jobs_queue_t *q, job_t *j)
     {
         q->array[(q->high_bound)++]=j;
 #ifdef QUEUEDEBUG
-        WriteLog("Pushed job into queue '%s'", q->queuename);
+        WriteLog("Pushed job %p into queue '%s'", j, q->queuename);
 #endif
         q->size=q->high_bound-q->low_bound;
         pthread_mutex_unlock(&q->lock);
@@ -114,7 +118,7 @@ int push_job(jobs_queue_t *q, job_t *j)
         q->capacity += QUEUE_SIZE_RESERVE;
 
 #ifdef QUEUEDEBUG
-        WriteLog("Pushed job into queue '%s'", q->queuename);
+        WriteLog("Pushed job %p into queue '%s'", j, q->queuename);
 #endif
         q->size=q->high_bound-q->low_bound;
         pthread_mutex_unlock(&q->lock);
@@ -147,7 +151,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
     {
         *j = q->array[(q->low_bound)++];
 #ifdef QUEUEDEBUG
-        WriteLog("Popped from queue '%s'", q->queuename);
+        WriteLog("Popped job %p from queue '%s'", j, q->queuename);
 #endif
         q->size=q->high_bound-q->low_bound;
         pthread_mutex_unlock(&q->lock);
@@ -175,7 +179,7 @@ int pop_job(jobs_queue_t* q, job_t **j)
         q->high_bound=size;//set high_bound to size
         *j = q->array[(q->low_bound)++];
 #ifdef QUEUEDEBUG
-        WriteLog("Popped from queue '%s'", q->queuename);
+        WriteLog("Popped job %p from queue '%s'", j, q->queuename);
 #endif
         q->size=q->high_bound-q->low_bound;
         pthread_mutex_unlock(&q->lock);

@@ -1,32 +1,5 @@
 #include "http.h"
 
-void print_request(http_request_t* r)
-{
-
-    char proto[HTTP_PROTOCOL_VERSION_MAX_LENGTH],method[16];
-    http_header_node_t* node;
-    char header_name[HTTP_HEADER_NAME_MAX_LEN], header_value[HTTP_HEADER_VALUE_MAX_LEN];
-    printf("Request Line:\n");
-    http_method_to_str(r->req_line.method,method, 16);
-    printf("Method: %s\n",method);
-    printf("URI: %s\n",r->req_line.request_URI);
-    http_ptorocol_code_to_str(proto, r->req_line.http_version,HTTP_PROTOCOL_VERSION_MAX_LENGTH);
-    printf("Protocol: %s\n",proto);
-    printf("Headers:\n");
-
-    node=r->headers->first;
-
-    while(node != NULL)
-    {
-        header_name_to_str_value_by_type(node, header_name, header_value);
-        printf("%s %s\n",header_name,header_value);
-        node=node->next;
-    }
-    printf("\n");
-
-}
-
-
 int main(int argc, char** argv)
 {
 

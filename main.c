@@ -95,12 +95,13 @@ int main(int argc, char** argv)
         fclose(stdout);
 
 
-        sigemptyset(&set);
-        // signals
-        sigaddset(&set, SIGPIPE );
-        //sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
-        sigprocmask(SIG_BLOCK,&set, NULL);
     }
+
+    sigemptyset(&set);
+    // signals
+    sigaddset(&set, SIGPIPE );
+    //sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+    sigprocmask(SIG_BLOCK,&set, NULL);
     //TODO signal handler(SIGPIPE, SIGUSR1 etc)
     run_server();
 

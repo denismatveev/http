@@ -846,7 +846,13 @@ int load_cfg(config_t* cfg)
             return -1;
 
         }
-        add_elem(cfg->default_vhost->Set, "indexfilepath", fullindexfile);
+        if(add_elem(cfg->default_vhost->Set, "indexfilepath", fullindexfile))
+        {
+            WriteLog("Error adding indexfilepath %s in default section", fullindexfile);
+            close(fd);
+            return -1;
+        }
+
         close(fd);
     }
 
@@ -896,7 +902,13 @@ int load_cfg(config_t* cfg)
             return -1;
 
         }
-        add_elem(qe->node->section->Set, "indexfilepath", fullindexfile);
+        if(add_elem(tmp->node->section->Set, "indexfilepath", fullindexfile))
+        {
+            WriteLog("Error adding indexfilepath %s in %s", fullindexfile, tmp->node->hostname);
+            close(fd);
+            return -1;
+
+        }
         close(fd);
     }
 

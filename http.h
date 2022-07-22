@@ -23,7 +23,6 @@
 #define HTTP_HEADERS_MAX_SIZE 8192
 #define INITIAL_DATA_SIZE (8+REQUEST_URI_STRING_LENGTH+9+HTTP_HEADERS_MAX_SIZE) //method+request-uri+http-version+headers
 #define HEADERS_LIMIT 64 //total number of headers(general,request, entity, response headers)
-#define MAX_EVENTS 10
 #define SERVERNAME "Maya"
 #define CONTENT_TYPE_MAX_LENGTH 16
 #define HTTP_PROTOCOL_VERSION_MAX_LENGTH 9
@@ -61,11 +60,11 @@ typedef enum http_protocol_version
 #define HTTP_REASON_CODE(XX)                             \
     XX(200,  OK       ,        200 OK            )       \
     XX(400,  BAD_REQUEST,      400 Bad Request)          \
-    XX(403,  FORBIDDEN,        400 Forbidden)            \
     XX(404,  NOT_FOUND,        404 Not Found)            \
     XX(413,  ENTITY_TOO_LARGE, 413 Entity Too Large)     \
     XX(500,  INTERNAL_ERROR,   500 Internal Error)       \
     XX(501,  NOT_IMPLEMENTED,  501 Not Implemented  )    \
+    XX(403,  FORBIDDEN,        400 Forbidden)            \
 
 
 typedef enum reason_code
@@ -108,15 +107,15 @@ typedef enum entity_content_type
 } http_entity_header_content_type_t;
 
 #define HTTP_GENERAL_HEADER(XX)                       \
-    XX(0, CACHE_CONTROL,      Cache-Control:)         \
-    XX(1, CONNECTION,         Connection:)            \
-    XX(2, DATE,               Date:)                  \
-    XX(3, PRAGMA,             Pragma:)                \
-    XX(4, TRAILER,            Trailer:)               \
-    XX(5, TRANSFER_ENCODING,  Transfer-Encoding:)     \
-    XX(6, UPGRADE,            Upgrade:)               \
-    XX(7, VIA,                Via:)                   \
-    XX(8, WARNING,            Warning:)               \
+    XX(0, CACHE_CONTROL,      Cache-Control)         \
+    XX(1, CONNECTION,         Connection)            \
+    XX(2, DATE,               Date)                  \
+    XX(3, PRAGMA,             Pragma)                \
+    XX(4, TRAILER,            Trailer)               \
+    XX(5, TRANSFER_ENCODING,  Transfer-Encoding)     \
+    XX(6, UPGRADE,            Upgrade)               \
+    XX(7, VIA,                Via)                   \
+    XX(8, WARNING,            Warning)               \
 
 typedef enum general_header
 {
@@ -137,16 +136,16 @@ typedef enum __header_type
 }http_header_type_t;
 
 #define HTTP_ENTITY_HEADER(XX)                           \
-    XX(0, ALLOW,                  Allow:)                \
-    XX(1, CONTENT_ENCODING,       Content-Encoding:)     \
-    XX(2, CONTENT_LANGUAGE,       Content-Language:)     \
-    XX(3, CONTENT_LENGTH,         Content-Length:)       \
-    XX(4, CONTENT_LOCATION,       Content-Location:)    \
-    XX(5, CONTENT_MD5,            Content-MD5:)          \
-    XX(6, CONTENT_RANGE,          Content-Range:)        \
-    XX(7, CONTENT_TYPE,           Content-Type:)        \
-    XX(8, EXPIRES,                Expires:)              \
-    XX(9, LAST_MODIFIED,          Last-Modified:)        \
+    XX(0, ALLOW,                  Allow)                \
+    XX(1, CONTENT_ENCODING,       Content-Encoding)     \
+    XX(2, CONTENT_LANGUAGE,       Content-Language)     \
+    XX(3, CONTENT_LENGTH,         Content-Length)       \
+    XX(4, CONTENT_LOCATION,       Content-Location)    \
+    XX(5, CONTENT_MD5,            Content-MD5)          \
+    XX(6, CONTENT_RANGE,          Content-Range)        \
+    XX(7, CONTENT_TYPE,           Content-Type)        \
+    XX(8, EXPIRES,                Expires)              \
+    XX(9, LAST_MODIFIED,          Last-Modified)        \
 
 typedef enum enity_header
 {
@@ -197,25 +196,25 @@ typedef enum http_method
 } http_method_t;
 
 #define HTTP_REQUEST_HEADER(XX)                                  \
-    XX(0, ACCEPT,                         Accept:)               \
-    XX(1, ACCEPT_CHARSET,                 Accept-Charset:)       \
-    XX(2, ACCEPT_ENCODING,                Accept-Encoding:)      \
-    XX(3, ACCEPT_LANGUAGE,                Accept-Language:)      \
-    XX(4, AUTHORIZATION,                  Authorization:)        \
-    XX(5, EXPECT,                         Expect:)               \
-    XX(6, FROM,                           From:)                 \
+    XX(0, ACCEPT,                         Accept)               \
+    XX(1, ACCEPT_CHARSET,                 Accept-Charset)       \
+    XX(2, ACCEPT_ENCODING,                Accept-Encoding)      \
+    XX(3, ACCEPT_LANGUAGE,                Accept-Language)      \
+    XX(4, AUTHORIZATION,                  Authorization)        \
+    XX(5, EXPECT,                         Expect)               \
+    XX(6, FROM,                           From)                 \
     XX(7, HOST,                           Host:)                 \
-    XX(8, IF_MATCH,                       If-Match:)              \
-    XX(9, IF_MODIFIED_SINCE,              If-Modified-Since:)    \
-    XX(10, IF_NONE_MATCH,                 If-None-Match:)        \
-    XX(11, IF_RANGE,                      If-Range:)             \
-    XX(12, IF_UNMODIFIED_SINCE,           If-Unmodified-Since:)  \
-    XX(13, MAX_FORWARDS,                  Max-Forwards:)         \
-    XX(14, PROXY_AUTHORIZATION,           Proxy-Authorization:)  \
-    XX(15, RANGE,                         Range:)                \
-    XX(16, REFERER,                       Referer:)              \
-    XX(17, TE,                            TE:)                   \
-    XX(18, USER_AGENT,                    User-Agent:)           \
+    XX(8, IF_MATCH,                       If-Match)              \
+    XX(9, IF_MODIFIED_SINCE,              If-Modified-Since)    \
+    XX(10, IF_NONE_MATCH,                 If-None-Match)        \
+    XX(11, IF_RANGE,                      If-Range)             \
+    XX(12, IF_UNMODIFIED_SINCE,           If-Unmodified-Since)  \
+    XX(13, MAX_FORWARDS,                  Max-Forwards)         \
+    XX(14, PROXY_AUTHORIZATION,           Proxy-Authorization)  \
+    XX(15, RANGE,                         Range)                \
+    XX(16, REFERER,                       Referer)              \
+    XX(17, TE,                            TE)                   \
+    XX(18, USER_AGENT,                    User-Agent)           \
 
 typedef enum request_header
 {
@@ -246,15 +245,15 @@ typedef struct __http_request
 /* Response related data structures */
 
 #define HTTP_RESPONSE_HEADER(XX)                       \
-    XX(0, ACCEPT_RANGES,      Accept-Ranges:)          \
-    XX(1, AGE,                Age:)                    \
-    XX(2, ETAG,               ETag:)                   \
-    XX(3, LOCATION,           Location:)               \
-    XX(4, PROXY_AUTHENTICATE, Proxy-Authenticate:)     \
-    XX(5, RETRY_AFTER,        Retry-After:)            \
-    XX(6, SERVER,             Server:)                 \
-    XX(7, VARY,               Vary:)                   \
-    XX(8, WWW_AUTHENTICATE,   WWW-Authenticate:)       \
+    XX(0, ACCEPT_RANGES,      Accept-Ranges)          \
+    XX(1, AGE,                Age)                    \
+    XX(2, ETAG,               ETag)                   \
+    XX(3, LOCATION,           Location)               \
+    XX(4, PROXY_AUTHENTICATE, Proxy-Authenticate)     \
+    XX(5, RETRY_AFTER,        Retry-After)            \
+    XX(6, SERVER,             Server)                 \
+    XX(7, VARY,               Vary)                   \
+    XX(8, WWW_AUTHENTICATE,   WWW-Authenticate)       \
 
 typedef enum response_header
 {
@@ -276,9 +275,8 @@ typedef struct __http_response
     http_status_line_t sl;
     http_headers_list_t* headers;
     char message_body[MAX_MSG_BODY_SIZE];
+    char *error_message;
     long message_body_size;
-  //  char* error;// pointer to string of error body in case the response is an http error
-
 }http_response_t;
 
 /* Functions */
@@ -369,5 +367,6 @@ int read_message_body_from_socket(http_response_t * response, const int socket, 
 int add_error_message(http_response_t* response, char* error, char flags);
 int create_error_message(http_response_t* response, int error, char flags);
 int find_header_by_name(http_header_node_t*hn, const http_request_t *hr, char * header);
-int find_header_by_type(http_header_node_t* hn, const http_request_t* hr, int header_type, int header);
+void print_request(http_request_t* r);
+http_header_node_t* find_header_by_type(http_header_node_t** hn, const http_request_t* hr, int header_type, int header);
 #endif /*_HTTP_H*/

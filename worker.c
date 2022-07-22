@@ -1,4 +1,4 @@
-#include "worker.h"
+﻿#include "worker.h"
 #include "common.h"
 #include "http.h"
 #include "config.h"
@@ -72,7 +72,7 @@ void run_server()
     int conn_sock, nfds, epollfd, sockfd, err, ret;
     struct epoll_event ev, events[MAX_EVENTS];
     epollfd = epoll_create1(0);
-    ev.events = EPOLLIN;// level triggered
+    ev.events = EPOLLIN;// level triggered, register only data avaialbale for reading
     struct sockaddr_in cli_addr;
     socklen_t clilen;
     int nworkers;
@@ -85,6 +85,11 @@ void run_server()
     output_queue = init_jobs_queue("output");
 
     nworkers=atoi(get_value(cfg->general->Set, general_reserved_names[2]));
+    if(nworkers < 1)
+    {
+        WriteLog("Number of workers myst be greater 0");
+        exit(1);
+    }
     run_threads(nworkers);
     ev.data.fd = sockfd;
 
@@ -102,7 +107,7 @@ void run_server()
         exit(EXIT_FAILURE);
     }
     //TODO the loop below to be placed into dedicated thread
-    for (;;)
+    while (1)
     {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1)
@@ -140,7 +145,12 @@ void run_server()
                 }
             }
             else
+            {
+#ifdef DEBUG
+                WriteLog("New event on socket %d", events[n].data.fd);
+#endif
                 ret = create_job_to_process(events[n].data.fd);
+            }
         }
 
         pthread_mutex_lock(&mutex);
@@ -159,19 +169,27 @@ int create_job_to_process(int client_sock)
 #ifdef DEBUG
     WriteLog("Creating jobs");
 #endif
+
     if((job = create_job()) == NULL)
         return -1;
 
-    job->socket=client_sock; //  copy fd to raw data structure
+    job->socket=client_sock;
     bytes_read=read(client_sock, job->raw_data, INITIAL_DATA_SIZE); // reading data from the socket to structure
     job->raw_data[bytes_read+1] = 0;//adds 0 to the end of data
+#ifdef DEBUG
+    WriteLog("Raw data: %s", job->raw_data);
+#endif
 
-    if(push_job(input_queue, job))
+    if((push_job(input_queue, job)))
     {
         WriteLog("Error occured while pushing a job into jobs queue\n");
         destroy_job(job);
         return -1;
     }
+
+#ifdef DEBUG
+    WriteLog("push job %p in input queue by thread %lu in process() function", job, pthread_self());
+#endif
     return 0;
 }
 
@@ -180,10 +198,12 @@ void* process_jobs(void* args)
 {
     //  struct sending_thread_args *targs = args;// you can pass args via this struct
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    char* rootdir;
 
     job_t *job;
     http_header_node_t* header_node;
     section_t cfg_section;
+
     int err;
     int ret;
     char date[DATE_HEADER_MAX_LENGTH];
@@ -193,24 +213,51 @@ void* process_jobs(void* args)
     {
         header_node = NULL;
         job = NULL;
-        pthread_mutex_lock(&mutex);
 
+        pthread_mutex_lock(&mutex);
         while(input_queue->size == 0)
             pthread_cond_wait(&input_cond,&mutex);
+        pthread_mutex_unlock(&mutex);
+
 
 #ifdef DEBUG
-        WriteLog("Processing job from input queue");
+        WriteLog("Processing job from input queue in thread %lu queue size is %d", pthread_self(), input_queue->size);
 #endif
 
         if((pop_job(input_queue, &job)))
             continue;
-
+#ifdef DEBUG
+        WriteLog("pop job %p from input queue by thread %lu in process() function", job, pthread_self());
+#endif
         // parsing raw client data and create a http_request
         ret=process_http_data(job->req, job->raw_data);
-        // depending on what data are in http_request we are making a response
+        // depending on which data are in http_request we are making a response
 
         if(ret == 0)
         {
+#ifdef DEBUG
+            if(job->req->parsing_result == 0)
+            {
+
+                char proto[HTTP_PROTOCOL_VERSION_MAX_LENGTH],method[16];
+                http_header_node_t* node;
+                char header_name[HTTP_HEADER_NAME_MAX_LEN], header_value[HTTP_HEADER_VALUE_MAX_LEN];
+                http_method_to_str(job->req->req_line.method, method, 16);
+                http_ptorocol_code_to_str(proto, job->req->req_line.http_version,HTTP_PROTOCOL_VERSION_MAX_LENGTH);
+                WriteLog("Request Line: %s %s %s", method, job->req->req_line.request_URI, proto);
+                WriteLog("Headers:");
+
+                node=job->req->headers->first;
+
+                while(node != NULL)
+                {
+                    header_name_to_str_value_by_type(node, header_name, header_value);
+                    WriteLog("%s %s",header_name, header_value);
+                    node=node->next;
+                }
+            }
+
+#endif
             if(job->req->parsing_result == 0)
             {
                 switch(job->req->req_line.method)
@@ -218,100 +265,123 @@ void* process_jobs(void* args)
                 case HTTP_METHOD_HEAD:
 
                     // looking for Host header in a request and then search if there is such host in cfg, otherwise use default host
-                    if((find_header_by_type(header_node, job->req, http_request_header, REQUEST_HEADER_HOST)) == 0)
+                    if((header_node=find_header_by_type(NULL, job->req, http_request_header, REQUEST_HEADER_HOST)) != NULL)
                         cfg_section=search_for_host_in_cfg(cfg, header_node->http_header_value);
                     else
                         cfg_section=cfg->default_vhost;
 
+                    rootdir=get_value(cfg_section->Set,"rootdir");
                     get_current_date_str(date);
 
-                    if(strncmp(job->req->req_line.request_URI, "/", 1))
+                    if(chdir(rootdir))
+                    {
+                        WriteLogPError("Requested file");
+                        create_error_message(job->response, REASON_FORBIDDEN, NO_MSG_BODY);
+                    }
+                    if(job->req->req_line.request_URI[0] == '/' && job->req->req_line.request_URI[1] == 0)
                     {
                         indexfile=get_value(cfg_section->Set,"indexfilepath");
                         job->fd=open(indexfile, O_RDONLY);// file descriptor will be closed in destroy_job()
                         set_reason_code(job->response, 200);
-                        add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, NO_MSG_BODY);
+                        add_file_as_message_body(job->response, job->fd, indexfile, NO_MSG_BODY);
                     }
                     else
                     {
-                        if((job->fd=open(job->req->req_line.request_URI, O_RDONLY | O_NOFOLLOW)) > 0)
+                        if((job->fd=open(job->req->req_line.request_URI+1, O_RDONLY | O_NOFOLLOW)) > 0)
                         {
+
                             if((checkRegularFile(job->fd)) == 0)
                             {
                                 set_reason_code(job->response, 200);
-                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, NO_MSG_BODY);
+                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI+1, NO_MSG_BODY);
                             }
                             else
                                 create_error_message(job->response, REASON_BAD_REQUEST, NO_MSG_BODY);
                         }
                         else
-                            create_error_message(job->response, REASON_FORBIDDEN, NO_MSG_BODY);
+                        {
+                            err=errno;
+                            if(err == EACCES)
+                                create_error_message(job->response, REASON_FORBIDDEN, NO_MSG_BODY);
+                            else if( err == ENOENT)
+                                create_error_message(job->response, REASON_NOT_FOUND, NO_MSG_BODY);
+                            else
+                                create_error_message(job->response, REASON_INTERNAL_ERROR, NO_MSG_BODY);
+                        }
                     }
-                    add_header_to_response(job->response, "Date:", date);
-                    add_header_to_response(job->response, "Server:", SERVERNAME);
+
+                    add_header_to_response(job->response, "Date", date);
+                    add_header_to_response(job->response, "Server", SERVERNAME);
 
                     goto PUSH;
 
                 case HTTP_METHOD_GET:
 
-                    if((find_header_by_type(header_node, job->req, http_request_header, REQUEST_HEADER_HOST)) == 0)
+                    if((header_node=find_header_by_type(NULL, job->req, http_request_header, REQUEST_HEADER_HOST)) != NULL)
                         cfg_section=search_for_host_in_cfg(cfg, header_node->http_header_value);
                     else
                         cfg_section=cfg->default_vhost;
-
+                    rootdir=get_value(cfg_section->Set,"rootdir");
                     get_current_date_str(date);
+                    if(chdir(rootdir))
+                    {
+                        WriteLogPError("Requested file");
+                        create_error_message(job->response, REASON_FORBIDDEN, NO_MSG_BODY);
+                    }
 
-                    if(strncmp(job->req->req_line.request_URI, "/", 1))
+                    if(job->req->req_line.request_URI[0] == '/' && job->req->req_line.request_URI[1] == 0)
                     {
                         indexfile=get_value(cfg_section->Set,"indexfilepath");
                         job->fd=open(indexfile, O_RDONLY);// file descriptor will be closed in destroy_job()
                         set_reason_code(job->response, 200);
-                        add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, SET_MSG_BODY);
+                        add_file_as_message_body(job->response, job->fd, indexfile, SET_MSG_BODY);
                     }
                     else
                     {
-                        if((job->fd=open(job->req->req_line.request_URI, O_RDONLY | O_NOFOLLOW)) > 0)
+                        if((job->fd=open(job->req->req_line.request_URI+1, O_RDONLY | O_NOFOLLOW)) > 0)
                         {
                             if((checkRegularFile(job->fd)) == 0)
                             {
                                 set_reason_code(job->response, 200);
-                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI, SET_MSG_BODY);
+                                add_file_as_message_body(job->response, job->fd, job->req->req_line.request_URI+1, SET_MSG_BODY);
                             }
                             else
                                 create_error_message(job->response, REASON_BAD_REQUEST, SET_MSG_BODY);
                         }
                         else
-                            create_error_message(job->response, REASON_FORBIDDEN, SET_MSG_BODY);
+                        {
+                            err=errno;
+                            if(err == EACCES)
+                                create_error_message(job->response, REASON_FORBIDDEN, SET_MSG_BODY);
+                            else if( err == ENOENT)
+                                create_error_message(job->response, REASON_NOT_FOUND, SET_MSG_BODY);
+                            else
+                                create_error_message(job->response, REASON_INTERNAL_ERROR, SET_MSG_BODY);
+                        }
                     }
-                    add_header_to_response(job->response, "Date:", date);
-                    add_header_to_response(job->response, "Server:", SERVERNAME);
-
-
+                    add_header_to_response(job->response, "Date", date);
+                    add_header_to_response(job->response, "Server", SERVERNAME);
                     goto PUSH;
-
-
-
                 default:
                     get_current_date_str(date);
-                    add_header_to_response(job->response, "Server:", SERVERNAME);
+                    add_header_to_response(job->response, "Date", date);
+                    add_header_to_response(job->response, "Server", SERVERNAME);
                     create_error_message(job->response, REASON_NOT_IMPLEMENTED, SET_MSG_BODY);
                     goto PUSH;
-
-
-
-
                 }
             }
             else if(job->req->parsing_result == 1)
             {
+                WriteLog("Cannot parse request: %s", job->raw_data);
                 get_current_date_str(date);
-                add_header_to_response(job->response, "Server:", SERVERNAME);
-                create_error_message(job->response, REASON_NOT_IMPLEMENTED, SET_MSG_BODY);
+                add_header_to_response(job->response, "Date", date);
+                add_header_to_response(job->response, "Server", SERVERNAME);
+                create_error_message(job->response, REASON_BAD_REQUEST, SET_MSG_BODY);
                 goto PUSH;
-
-
             }
         }
+
+
         if(ret != 0 )
         {
             WriteLog("Something went wrong while processing http request, check logs");
@@ -321,14 +391,15 @@ void* process_jobs(void* args)
 
 PUSH:
         // pushing the job into output queue
-        pthread_mutex_unlock(&mutex);
         if(push_job(output_queue, job))
         {
-            WriteLog("Error occured while pushing a job into jobs queue\n");
-            //return -1;
+            WriteLog("Error occured while pushing a job into jobs queue");
             continue;
         }
 
+#ifdef DEBUG
+        WriteLog("push job %p in output queue by thread %lu in process() function", job, pthread_self());
+#endif
         pthread_mutex_lock(&mutex);
         if(output_queue->size > 0)
             pthread_cond_signal(&output_cond); // data placed in output queue
@@ -351,28 +422,40 @@ void* send_data_to_client(void* args)
         pthread_mutex_lock(&mutex);// mutex here is needed to protect conditional variable
         while(output_queue->size == 0)
             pthread_cond_wait(&output_cond, &mutex);
+        pthread_mutex_unlock(&mutex);
+
+
 
 #ifdef DEBUG
         WriteLog("Sending jobs");
 #endif
         if((pop_job(output_queue, &job)))
             continue;
+
+#ifdef DEBUG
+        WriteLog("pop job %p from output queue by thread %lu in send() function", job, pthread_self());
+#endif
         memset(serialized_data,0, 10000);// make sense to move these two functions to process_jobs() and parallelize the work, and serialized_data put to job struct
         process_http_response(serialized_data,job->response, 10000);
+        // TODO everywhere replace C string by string_t to prevent counting length each time(it is too many times!) and spend CPU
+        headers_len=strlen(serialized_data);
         // sending a response
         // At first we need to send headers
         sent_bytes = write(job->socket, serialized_data, headers_len);
         // then we need to send either file or buffer
-        if(job->fd != 0)
-            sent_bytes += sendfile(job->socket,job->fd,NULL, job->response->message_body_size);
-        else
-            sent_bytes += write(job->socket, job->response->message_body, job->response->message_body_size);
+        if(job->response->message_body_size > 0 && job->response->error_message == NULL)
+        {
+            if(job->fd > 0)
+                sent_bytes += sendfile(job->socket,job->fd,NULL, job->response->message_body_size);
+            else
+                sent_bytes += write(job->socket, job->response->message_body, job->response->message_body_size);
+        }
+        else if (job->response->message_body_size > 0)
+            sent_bytes += write(job->socket, job->response->error_message, job->response->message_body_size);
 
         // deleting all allocated resources
-
         destroy_job(job);
 
-        pthread_mutex_unlock(&mutex);
     }
 }
 
@@ -399,6 +482,7 @@ int run_threads(int nprocessing)
     }
     if((rc=pthread_attr_setdetachstate(&worker_attr, PTHREAD_CREATE_DETACHED)))
     {
+        pthread_attr_destroy(&worker_attr);
         free(workers);
         return rc;
     }
@@ -408,7 +492,6 @@ int run_threads(int nprocessing)
         {
             WriteLogPError("creating processing thread");
             pthread_attr_destroy(&worker_attr);
-            free(workers);
 
             return rc;
         }
@@ -417,7 +500,11 @@ int run_threads(int nprocessing)
     if((rc=pthread_attr_init(&sender_attr)))
         return rc;
     if((rc=pthread_attr_setdetachstate(&sender_attr, PTHREAD_CREATE_DETACHED)))
+    {
+        pthread_attr_destroy(&sender_attr);
         return rc;
+
+    }
 
     if((rc=pthread_create(&sender, &sender_attr, send_data_to_client, NULL)))
     {
