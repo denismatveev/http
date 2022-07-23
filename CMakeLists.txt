@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 #swd - simple web daemon
 project(swd)
 include_directories(.)
-add_definitions(-DDEBUG -DQUEUEDEBUG)
+add_definitions(-DQUEUEDEBUG)
+add_definitions(-DDEBUG)
 add_library(http
     http.c
     common.c
