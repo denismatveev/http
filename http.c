@@ -1705,13 +1705,10 @@ int http_response_header_to_str(http_response_header_t h, char* str, unsigned ch
     strncat(str, ":", 1);
     return 0;
 }
-http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[])
+int init_http_request_header_node(http_header_node_t** header_node,const char http_header_name[], const char http_header_value[])
 {
-    http_header_node_t* t;
     http_header_type_t type;
     int http_header;
-
-
 
     if((http_header=str_to_http_general_header(http_header_name)) != INVALID_GENERAL_HEADER)
         type=http_general_header;
@@ -1720,20 +1717,19 @@ http_header_node_t* init_http_request_header_node(const char http_header_name[],
     else if((http_header=str_to_http_request_header(http_header_name)) != INVALID_REQUEST_HEADER)
         type=http_request_header;
     else
-        return NULL;
+        return 1;// header not found in the list of implemented headers, in other words this header is wrong
 
-    if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
-        return NULL;
-    t->type=type;
-    t->http_header=http_header;
-    strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
-    t->next = NULL;
+    if((*header_node = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
+        return 2;// problem with allocating resources
+    (*header_node)->type=type;
+    (*header_node)->http_header=http_header;
+    strncpy((*header_node)->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+    (*header_node)->next = NULL;
 
-    return t;
+    return 0;// all good
 }
-http_header_node_t* init_http_response_header_node(const char http_header_name[], const char http_header_value[])
+int init_http_response_header_node(http_header_node_t** header_node, const char http_header_name[], const char http_header_value[])
 {
-    http_header_node_t* t;
     http_header_type_t type;
     int http_header;
 
@@ -1744,20 +1740,20 @@ http_header_node_t* init_http_response_header_node(const char http_header_name[]
     else if((http_header=str_to_http_response_header(http_header_name)) != INVALID_RESPONSE_HEADER)
         type=http_response_header;
     else
-        return NULL;
+        return 1;// header not found in the list of added
 
-    if((t = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
-        return NULL;
+    if((*header_node = (http_header_node_t*)malloc(sizeof(http_header_node_t))) == NULL)
+        return 2;// no resources to be allocated
 
     if(http_header == ENTITY_HEADER_CONTENT_TYPE )
         if((validation_content_type(http_header_value)) != 0)
-            return NULL;
-    t->type=type;
-    t->http_header=http_header;
-    strncpy(t->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
-    t->next = NULL;
+            return 3; // Wrong content type(text/html and so on)
+    (*header_node)->type=type;
+    (*header_node)->http_header=http_header;
+    strncpy((*header_node)->http_header_value, http_header_value, HTTP_HEADER_VALUE_MAX_LEN);
+    (*header_node)->next = NULL;
 
-    return t;
+    return 0;// all good
 }
 int validation_content_type(const char *ct)
 {
@@ -1930,6 +1926,7 @@ int process_http_data(http_request_t *req, char *rd)
     if(rd == NULL)
         return -1;
     char *tok;
+    int ret_code;
     u_int_t count=0;
     http_header_node_t* header_node=NULL;
     http_headers_list_t* header_list=NULL;
@@ -1962,15 +1959,22 @@ int process_http_data(http_request_t *req, char *rd)
         }
         if(count == 0)
         {
-            if((header_node=init_http_request_header_node(header, value)) == NULL)
-                return 1;
+            if((ret_code=init_http_request_header_node(&header_node, header, value)) == 1)
+                continue;//if bad header - just skipping
+            else if(ret_code == 2)
+                return 1;// if allocating resources fails
             if((header_list=init_http_headers_list(header_node)) == NULL)
                 return 1;
         }
         else
         {
-            if((header_node=init_http_request_header_node(header, value)) == NULL)
-                return 1;
+            ret_code=init_http_request_header_node(&header_node, header, value);
+
+            if(ret_code == 1)//if bad header - just skipping
+                continue;
+            else if(ret_code == 2)
+                return 1;// if allocating resources fails
+
             push_http_header_to_list(header_list, header_node);
         }
 
@@ -2177,11 +2181,11 @@ int set_reason_code(http_response_t* r, int code)
 int add_header_to_response(http_response_t* resp, char* header_name, char* header_value)
 {
     http_headers_list_t* list=NULL;
-    http_header_node_t *node;
+    http_header_node_t *node=NULL;
     int ret;
 
     if( header_name != NULL && header_value != NULL)
-        if((node=init_http_response_header_node(header_name, header_value)) == NULL)
+        if((ret=init_http_response_header_node(&node, header_name, header_value)) != 0)
             return -1;
 
     if(resp->headers == NULL)

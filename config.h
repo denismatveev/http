@@ -1,5 +1,10 @@
 #ifndef CONFIG_TREE_H
 #define CONFIG_TREE_H
+/* Copyright Denis Matveev denis@denismatveev.me                                                          */
+/* Config is parsed in only one pass, without getting back                                                */
+/* This was I tried to cling while writing a code                                                         */
+/* For storing data I use RB tree, it is not an optimal solution for this, but I implemented just for fun */
+/* For RB tree traverse I use queue and an approach known as Breadth-first search (BFS)                   */
 #include<stdio.h>
 #include<string.h>
 #include <sys/socket.h>

@@ -1,5 +1,9 @@
 #ifndef HTTP_H
 #define HTTP_H
+/* Copyright Denis Matveev denis@denismatveev.me                                                       */
+/* The main idea to fast parsing HTTP proto(find the most efficient solution)                          */
+/* is to use finite state machine as switch-case construction                                          */
+/* This idea is not implemented everywhere, only partially                                             */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -294,8 +298,8 @@ http_request_t* init_http_request(void);
 void delete_http_request(http_request_t*);
 int process_http_data(http_request_t*, char *);//converts string -> http_request_t
 /* inner functions */
-http_header_node_t* init_http_request_header_node(const char http_header_name[], const char http_header_value[]);
-http_header_node_t* init_http_response_header_node(const char http_header_name[], const char http_header_value[]);
+int init_http_request_header_node(http_header_node_t **header_node, const char http_header_name[], const char http_header_value[]);
+int init_http_response_header_node(http_header_node_t** header_node, const char http_header_name[], const char http_header_value[]);
 void destroy_http_header_node(http_header_node_t*);
 http_headers_list_t* init_http_headers_list(http_header_node_t *first_node);
 void destroy_http_headers_list(http_headers_list_t*);
