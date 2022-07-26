@@ -1519,6 +1519,8 @@ int http_general_header_to_str(http_general_header_t h, char* str, unsigned char
     {
     case GENERAL_HEADER_CACHE_CONTROL:
         strncpy(str, general_header_str[0], str_len);
+        //TODO replace string copy by returning only pointer to the first element in the string, move adding colon (strncat()) to the fucntion serialize_data() to prevent unnecessary copy
+        //str = general_header_str[0];
         break;
     case GENERAL_HEADER_CONNECTION:
         strncpy(str, general_header_str[1], str_len);
@@ -1877,7 +1879,7 @@ int create_http_response(http_response_t *response, http_headers_list_t* list, h
 }
 int header_name_to_str_value_by_type(const http_header_node_t* node, char name[], char value[] )
 {
-
+// TODO to prevent copy of header name, we can store only pointer to string(first element) in enum and its length
     switch (node->type)
     {
     case http_entity_header:
