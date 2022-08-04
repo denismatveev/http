@@ -5,10 +5,12 @@ One queue is used for incoming requests, the second one is for sending replies t
 Features:
 * Multithreaded
 * My own dynamic queues implementation
-* To improve performance it implemented with using sendfile(), epoll() syscalls
+* To improve performance it is implemented with using sendfile(), epoll() syscalls
 * My own HTTP protocol parsing implementation
 * Supports jpg, png, pdf, mpeg, html MIMEs. Easy to add new types
 * Serves only static files
+* For storing config and searching virtual hosts RBTree is used(just for fun, it is not optimal in this case)
+* Hash tables and associative arrays are used inside virtaul hosts sections (this is also was just for fun and for trying to implement these data structures)
 
 Run:
 ```bash
