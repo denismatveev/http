@@ -63,10 +63,10 @@ TODO:
 * to prevent copy of header name, we can store only pointer to string(first element) in enum and its length
 * return a pointer to message_body if request method allows this(i.e.POST)
 * implement inorder RBtree traversal
-* replace everywhere C string by string_t to prevent counting length each time(it is too many times!) and spend CPU
+* replace everywhere C-string by string_t to prevent counting length each time(it is too many times!) and spend CPU
 
 For more TODOs see source files</br>
 
 Known problems:</br>
 
-* <em>strncat(char *dest, const char *src, size_t n)</em> - concatenates strings dest and src, the function gets n - length of concatenating string(src), not a buffer size of dest srting. This is not obvious and doesn't protect from buffer overflow.
+* <em>strncat(char *dest, const char *src, size_t n)</em> - concatenates strings dest and src, the function gets n - length of concatenating string(src), not a buffer size of dest srting. This is not obvious and doesn't protect from buffer overflow. The solution is to use string_t instead of C-string.
