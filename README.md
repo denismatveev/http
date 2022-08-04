@@ -66,6 +66,7 @@ TODO:
 * return a pointer to message_body if request method allows this(i.e.POST)
 * implement inorder RBtree traversal
 * replace everywhere C-string by string_t to prevent counting length each time(it is too many times!) and spend CPU
+* Implement SSL support(https://developer.ibm.com/tutorials/l-openssl/)
 
 For more TODOs see source files</br>
 
