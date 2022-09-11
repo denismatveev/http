@@ -3,7 +3,7 @@
 /* Copyright Denis Matveev denis@denismatveev.me                                                       */
 /* The main idea to fast parsing HTTP proto(find the most efficient solution)                          */
 /* is to use finite state machine as switch-case construction                                          */
-/* This idea is not implemented everywhere, only partially                                             */
+/* This idea is not implemented totally in the file, only partially                                    */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
